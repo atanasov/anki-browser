@@ -37,8 +37,8 @@ const CardBrowser = () => {
   const isFetchingRef = useRef(false);
 
   const activeViewId = useStore((state) => state.settings.activeViewId);
-  const getView = useStore((state) => state.getView);
-  const activeView = activeViewId ? getView(activeViewId) : null;
+  const views = useStore((state) => state.views);
+  const activeView = views?.find((v) => v.id === activeViewId) ?? null;
 
   const buildQuery = useCallback(() => {
     const base = activeView?.rawQuery?.trim() || "";

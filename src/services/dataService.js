@@ -294,7 +294,8 @@ class DataService {
     const index = this.data.views.findIndex((v) => v.id === id);
     if (index === -1) return false;
 
-    this.data.views[index] = {
+    const updatedViews = [...this.data.views];
+    updatedViews[index] = {
       ...this.data.views[index],
       ...updates,
       lastUsed: new Date().toISOString(),
@@ -305,6 +306,7 @@ class DataService {
           }
         : this.data.views[index].settings,
     };
+    this.data.views = updatedViews;
 
     this.saveData();
     return true;
