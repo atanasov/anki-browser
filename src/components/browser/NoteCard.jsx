@@ -4,7 +4,7 @@
  * text → centered overlay with adaptive font sizing.
  */
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import useStore from "../../store";
 import { getFallbackContent } from "../../utils/cardTemplates";
 import templateProcessor from "../../services/templateProcessor";
@@ -82,7 +82,7 @@ const CardSide = ({ parsed, fontClass, isVisible, globalTextShadow }) => {
 
 
       <div
-        className={`relative z-10 text-center px-4 w-full leading-relaxed overflow-hidden ${fontClass} ${
+        className={`relative z-10 text-center px-4 w-full max-h-full leading-relaxed overflow-hidden ${fontClass} ${
           bgImage ? "text-white" : "text-gray-800 dark:text-gray-100"
         }`}
         dangerouslySetInnerHTML={{ __html: textHtml }}
@@ -132,40 +132,79 @@ const NoteCard = ({ note }) => {
     ? { textShadow: "2px 2px 4px rgba(0,0,0,0.8), -1px -1px 2px rgba(0,0,0,0.8)" }
     : {};
 
-  // Process templates and parse both sides
+  const isFlippedRef = useRef(false);
+  const backMediaLoadedRef = useRef(false);
+
+  // Pass 1: instant text-only render so cards appear immediately.
+  // Pass 2: load media for front in background, then back on first flip.
   useEffect(() => {
-    const processContent = async () => {
-      if (!activeView || !note.fields) return;
+    if (!activeView || !note.fields) return;
 
+    isFlippedRef.current = false;
+    backMediaLoadedRef.current = false;
+
+    const frontTemplate = activeView.frontFields.map((f) => `{${f}}`).join("<br>");
+    const backTemplate = activeView.backFields.map((f) => `{${f}}`).join("<br>");
+
+    let cancelled = false;
+
+    const run = async () => {
+      // --- Pass 1: text only, no network calls ---
       try {
-        const frontTemplate = activeView.frontFields.map((f) => `{${f}}`).join(" ");
-        const backTemplate = activeView.backFields.map((f) => `{${f}}`).join(" ");
-
-        const [processedFront, processedBack] = await Promise.all([
+        const [textFront, textBack] = await Promise.all([
           templateProcessor.processTemplate(frontTemplate, note.fields, {
             showAfterFields: false,
             isGameTemplate: false,
+            skipMedia: true,
           }),
           templateProcessor.processTemplate(backTemplate, note.fields, {
             showAfterFields: true,
             isGameTemplate: false,
+            skipMedia: true,
           }),
         ]);
-
-        const front = processedFront || getFallbackContent(note.fields);
-        const back = processedBack || processedFront;
-
+        if (cancelled) return;
+        const front = textFront || getFallbackContent(note.fields);
+        const back = textBack || textFront;
         setParsedFront(parseCardContent(front));
         setParsedBack(parseCardContent(back));
-      } catch (error) {
-        logger.error("Failed to process card content:", error);
-        const fallback = getFallbackContent(note.fields);
-        setParsedFront(parseCardContent(fallback));
-        setParsedBack(parseCardContent(fallback));
+      } catch (err) {
+        logger.error("Failed text-only render:", err);
+      }
+
+      // --- Pass 2: load media for front ---
+      try {
+        const richFront = await templateProcessor.processTemplate(frontTemplate, note.fields, {
+          showAfterFields: false,
+          isGameTemplate: false,
+          skipMedia: false,
+        });
+        if (cancelled) return;
+        setParsedFront(parseCardContent(richFront || getFallbackContent(note.fields)));
+      } catch (err) {
+        logger.error("Failed media render for front:", err);
       }
     };
 
-    processContent();
+    run();
+    return () => { cancelled = true; };
+  }, [activeView, note.fields]);
+
+  // Load back media lazily on first flip
+  const loadBackMedia = useCallback(async () => {
+    if (backMediaLoadedRef.current || !activeView || !note.fields) return;
+    backMediaLoadedRef.current = true;
+    const backTemplate = activeView.backFields.map((f) => `{${f}}`).join("<br>");
+    try {
+      const richBack = await templateProcessor.processTemplate(backTemplate, note.fields, {
+        showAfterFields: true,
+        isGameTemplate: false,
+        skipMedia: false,
+      });
+      setParsedBack(parseCardContent(richBack || getFallbackContent(note.fields)));
+    } catch (err) {
+      logger.error("Failed media render for back:", err);
+    }
   }, [activeView, note.fields]);
 
   const handleMouseEnter = async () => {
@@ -231,7 +270,11 @@ const NoteCard = ({ note }) => {
       toggleNoteSelection(note.note_id);
       return;
     }
-    setIsFlipped((prev) => !prev);
+    setIsFlipped((prev) => {
+      const next = !prev;
+      if (next) loadBackMedia();
+      return next;
+    });
   };
 
   const frontFontClass = getAdaptiveFontClass(fontSizeClass, parsedFront.textHtml);
@@ -261,7 +304,11 @@ const NoteCard = ({ note }) => {
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            setIsFlipped((prev) => !prev);
+            setIsFlipped((prev) => {
+              const next = !prev;
+              if (next) loadBackMedia();
+              return next;
+            });
           }
         }}
       >
@@ -367,7 +414,7 @@ const NoteCard = ({ note }) => {
             </div>
 
             <button
-              onClick={(e) => { e.stopPropagation(); setIsFlipped((prev) => !prev); }}
+              onClick={(e) => { e.stopPropagation(); setIsFlipped((prev) => { const next = !prev; if (next) loadBackMedia(); return next; }); }}
               className={`rounded-full p-2 shadow-lg transition-all duration-200 hover:scale-110 text-white ${
                 isFlipped ? "bg-purple-600 hover:bg-purple-700" : "bg-gray-600 hover:bg-gray-700"
               }`}

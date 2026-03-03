@@ -67,7 +67,7 @@ class TemplateProcessor {
       return "";
     }
 
-    const { showAfterFields = true, isGameTemplate = false } = options;
+    const { showAfterFields = true, isGameTemplate = false, skipMedia = false } = options;
     let processedTemplate = template;
 
     // Track autoplay audio files for game templates
@@ -159,6 +159,14 @@ class TemplateProcessor {
 
       const audioMatch = fieldValue.match(/\[sound:([^\]]+)\]/);
       if (audioMatch && audioMatch[1]) {
+        if (skipMedia) {
+          // Text-only pass: strip the [sound:...] tag entirely
+          processedTemplate = processedTemplate.replace(
+            new RegExp(placeholder.replace(/[{}]/g, "\\$&"), "g"),
+            ""
+          );
+          continue;
+        }
         const audioFilename = audioMatch[1].trim();
         try {
           // Try to get from cache first
@@ -237,6 +245,14 @@ class TemplateProcessor {
 
       const imgMatch = fieldValue.match(/<img[^>]+src=["']([^"']+)["']/);
       if (imgMatch && imgMatch[1]) {
+        if (skipMedia) {
+          // Text-only pass: strip the img tag entirely
+          processedTemplate = processedTemplate.replace(
+            new RegExp(placeholder.replace(/[{}]/g, "\\$&"), "g"),
+            ""
+          );
+          continue;
+        }
         const imageFilename = imgMatch[1].trim();
         try {
           // Try to get from cache first
