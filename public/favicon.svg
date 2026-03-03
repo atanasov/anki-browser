@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect width="100" height="100" rx="18" fill="#3b82f6"/>
+  <!-- Card stack: back card -->
+  <rect x="22" y="28" width="52" height="38" rx="5" fill="#1d4ed8" opacity="0.6"/>
+  <!-- Card stack: front card -->
+  <rect x="18" y="22" width="52" height="38" rx="5" fill="white"/>
+  <!-- Lines suggesting text on card -->
+  <rect x="26" y="32" width="28" height="3.5" rx="1.5" fill="#3b82f6"/>
+  <rect x="26" y="39" width="20" height="3.5" rx="1.5" fill="#93c5fd"/>
+  <rect x="26" y="46" width="24" height="3.5" rx="1.5" fill="#93c5fd"/>
+  <!-- Sparkle / star top-right -->
+  <circle cx="72" cy="26" r="4" fill="#fbbf24"/>
+</svg>

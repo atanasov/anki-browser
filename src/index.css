@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Utility class to hide content while preserving layout space */
+.invisible {
+  visibility: hidden;
+}
+
+/* Show hidden {after::} fields when answer is revealed */
+.show-after-fields .invisible {
+  visibility: visible;
+}
+
+/* Compact Audio Player Styles */
+.compact-audio-player-wrapper {
+  margin: 0.5rem auto;
+}
+
+.compact-audio-btn {
+  cursor: pointer;
+  user-select: none;
+}
+
+.compact-audio-btn:active {
+  transform: scale(0.95);
+}
+
+/* Card Content Image Constraints */
+.card-front img,
+.card-back img {
+  max-width: 100%;
+  max-height: 250px;
+  object-fit: contain;
+  margin: 0.5rem auto;
+}
+
+/* Game Card Image Constraints */
+.bg-white img,
+.bg-blue-50 img {
+  max-width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+  margin: 0.5rem auto;
+}

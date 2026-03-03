@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Anki Browser</title>
+    <meta name="description" content="Browse and study your Anki cards in a beautiful web interface. Connect to Anki Desktop and explore your decks with a visual card grid." />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Anki Browser" />
+    <meta property="og:description" content="Browse and study your Anki cards in a beautiful web interface. Connect to Anki Desktop and explore your decks with a visual card grid." />
+    <meta property="og:type" content="website" />
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
+
+    <!-- Theme initialization script - runs before page render to prevent flash -->
+    <script>
+      (function () {
+        try {
+          var data = JSON.parse(localStorage.getItem("anki-games-data") || "{}");
+          var theme = data.theme || "system";
+          var systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light";
+          var actualTheme = theme === "system" ? systemTheme : theme;
+          if (actualTheme === "dark") {
+            document.documentElement.classList.add("dark");
+          }
+        } catch (e) {
+          if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            document.documentElement.classList.add("dark");
+          }
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
