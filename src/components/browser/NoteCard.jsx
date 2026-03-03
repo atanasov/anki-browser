@@ -57,7 +57,7 @@ const parseCardContent = (html) => {
 // Step down from the user's fontSize class based on stripped text length.
 const getAdaptiveFontClass = (baseClass, html) => {
   const text = (html || "").replace(/<[^>]*>/g, "").trim();
-  const sizes = ["text-xs", "text-sm", "text-base", "text-lg", "text-xl", "text-2xl", "text-3xl"];
+  const sizes = ["text-xs", "text-sm", "text-base", "text-lg", "text-xl", "text-2xl", "text-3xl", "text-4xl", "text-5xl"];
   const idx = sizes.indexOf(baseClass);
   if (idx === -1) return baseClass;
   const stepDown = text.length > 200 ? 3 : text.length > 100 ? 2 : text.length > 40 ? 1 : 0;

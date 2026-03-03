@@ -10,6 +10,9 @@ export default {
     "h-[512px]",
     "w-[768px]",
     "h-[768px]",
+    // Font size classes (dynamically applied via fontSizeHelpers)
+    "text-4xl",
+    "text-5xl",
   ],
   theme: {
     extend: {

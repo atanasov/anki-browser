@@ -3,33 +3,20 @@
  * Utilities for managing card content font sizes
  */
 
-/**
- * Get Tailwind text size class for a given font size setting
- * @param {string} fontSize - Font size setting ("small" | "medium" | "large" | "xlarge" | "xxlarge" | "xxxlarge")
- * @returns {string} Tailwind text size class
- */
-export const getFontSizeClass = (fontSize) => {
-  const fontSizeMap = {
-    small: "text-sm",
-    medium: "text-base",
-    large: "text-lg",
-    xlarge: "text-xl",
-    xxlarge: "text-2xl",
-    xxxlarge: "text-3xl",
-  };
+const FONT_SIZE_OPTIONS = [
+  { value: "small",    label: "S",   class: "text-sm"  },
+  { value: "medium",   label: "M",   class: "text-base" },
+  { value: "large",    label: "L",   class: "text-lg"  },
+  { value: "xlarge",   label: "XL",  class: "text-xl"  },
+  { value: "xxlarge",  label: "2XL", class: "text-2xl" },
+  { value: "xxxlarge", label: "3XL", class: "text-3xl" },
+  { value: "4xlarge",  label: "4XL", class: "text-4xl" },
+  { value: "5xlarge",  label: "5XL", class: "text-5xl" },
+];
 
-  return fontSizeMap[fontSize] || "text-base";
+export const getFontSizeClass = (fontSize) => {
+  const option = FONT_SIZE_OPTIONS.find((o) => o.value === fontSize);
+  return option ? option.class : "text-base";
 };
 
-/**
- * Get all available font size options
- * @returns {Array} Array of font size options
- */
-export const getFontSizeOptions = () => [
-  { value: "small", label: "Small", class: "text-sm" },
-  { value: "medium", label: "Medium", class: "text-base" },
-  { value: "large", label: "Large", class: "text-lg" },
-  { value: "xlarge", label: "Extra Large", class: "text-xl" },
-  { value: "xxlarge", label: "Huge", class: "text-2xl" },
-  { value: "xxxlarge", label: "Monstrous", class: "text-3xl" },
-];
+export const getFontSizeOptions = () => FONT_SIZE_OPTIONS;

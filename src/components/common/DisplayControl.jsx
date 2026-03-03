@@ -145,21 +145,30 @@ const DisplayControl = () => {
           <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2">
             Font Size
           </p>
-          <div className="flex flex-wrap gap-1">
-            {fontSizeOptions.map(({ value, label, class: cls }) => (
-              <button
-                key={value}
-                onClick={() => updateSettings({ fontSize: value })}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  fontSize === value
-                    ? "bg-blue-600 text-white"
-                    : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                } ${cls}`}
-                title={label}
-              >
-                {label}
-              </button>
-            ))}
+          <div className="px-1">
+            <input
+              type="range"
+              min={0}
+              max={fontSizeOptions.length - 1}
+              value={fontSizeOptions.findIndex((o) => o.value === fontSize)}
+              onChange={(e) => updateSettings({ fontSize: fontSizeOptions[Number(e.target.value)].value })}
+              className="w-full accent-blue-600 cursor-pointer"
+            />
+            <div className="flex justify-between mt-1">
+              {fontSizeOptions.map(({ value, label }) => (
+                <span
+                  key={value}
+                  onClick={() => updateSettings({ fontSize: value })}
+                  className={`text-[10px] cursor-pointer select-none transition-colors ${
+                    fontSize === value
+                      ? "text-blue-600 dark:text-blue-400 font-semibold"
+                      : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                  }`}
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
 
