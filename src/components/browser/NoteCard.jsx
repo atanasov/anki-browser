@@ -49,7 +49,11 @@ const parseCardContent = (html) => {
     wrapper.remove();
   });
 
-  const textHtml = body.innerHTML.replace(/<div[^>]*>\s*<\/div>/g, "").trim();
+  const textHtml = body.innerHTML
+    .replace(/<div[^>]*>\s*<\/div>/g, "")
+    .replace(/^(\s*<br\s*\/?>\s*)+/i, "")
+    .replace(/(\s*<br\s*\/?>\s*)+$/i, "")
+    .trim();
 
   return { bgImage, audioSrcs, textHtml };
 };
