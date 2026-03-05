@@ -58,6 +58,7 @@ export const DEFAULT_APP_DATA = {
     fontSize: "medium", // "small" | "medium" | "large" | "xlarge"
     gridSize: "medium", // "small" | "medium" | "large"
     aspectRatio: "square", // "square" | "portrait" | "landscape"
+    fitToCard: false, // auto-size font to fill card
   },
   views: [],
 };

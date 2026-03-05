@@ -68,11 +68,52 @@ const TEXT_SHADOW = "2px 2px 6px rgba(0,0,0,0.9), -1px -1px 3px rgba(0,0,0,0.9),
 
 // Renders one side of the card (front or back) consistently:
 // image as full-panel background, audio as small corner buttons, text centered.
-const CardSide = ({ parsed, fontClass, isVisible, globalTextShadow }) => {
+const CardSide = ({ parsed, fontClass, isVisible, globalTextShadow, fitToCard }) => {
   const { bgImage, textHtml } = parsed;
+  const containerRef = useRef(null);
+  const textRef = useRef(null);
+
+  // Binary-search the largest px font-size where content fits the card.
+  const doFit = useCallback(() => {
+    const el = textRef.current;
+    if (!el) return;
+    const plainText = (textHtml || "").replace(/<[^>]*>/g, "").trim();
+    if (!plainText) return;
+
+    let lo = 8, hi = 96, best = 8;
+    for (let i = 0; i < 10; i++) {
+      const mid = (lo + hi) / 2;
+      el.style.fontSize = `${mid}px`;
+      if (el.scrollHeight <= el.offsetHeight && el.scrollWidth <= el.offsetWidth) {
+        best = mid;
+        lo = mid;
+      } else {
+        hi = mid;
+      }
+    }
+    el.style.fontSize = `${Math.floor(best)}px`;
+  }, [textHtml]);
+
+  // Re-fit when content changes, visibility changes (back side flip), or feature toggled.
+  useEffect(() => {
+    if (!fitToCard) {
+      if (textRef.current) textRef.current.style.fontSize = "";
+      return;
+    }
+    doFit();
+  }, [fitToCard, doFit, isVisible]);
+
+  // Re-fit when card dimensions change (grid size / aspect ratio).
+  useEffect(() => {
+    if (!fitToCard || !containerRef.current) return;
+    const observer = new ResizeObserver(doFit);
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, [fitToCard, doFit]);
 
   return (
     <div
+      ref={containerRef}
       className={`absolute inset-0 flex items-center justify-center transition-all duration-300 overflow-hidden ${
         isVisible ? "opacity-100 scale-100" : "opacity-0 scale-105 pointer-events-none"
       } ${bgImage ? "bg-cover bg-center bg-no-repeat" : "p-6"}`}
@@ -80,9 +121,9 @@ const CardSide = ({ parsed, fontClass, isVisible, globalTextShadow }) => {
     >
       {bgImage && <div className="absolute inset-0 bg-black/40 pointer-events-none" />}
 
-
       <div
-        className={`relative z-10 text-center px-4 w-full max-h-full leading-relaxed overflow-hidden ${fontClass} ${
+        ref={textRef}
+        className={`relative z-10 text-center px-4 w-full max-h-full leading-relaxed overflow-hidden ${fitToCard ? "" : fontClass} ${
           bgImage ? "text-white" : "text-gray-800 dark:text-gray-100"
         }`}
         dangerouslySetInnerHTML={{ __html: textHtml }}
@@ -98,6 +139,7 @@ const NoteCard = ({ note }) => {
   const fontSize = useStore((state) => state.settings?.fontSize || "medium");
   const gridSize = useStore((state) => state.settings?.gridSize || "medium");
   const aspectRatio = useStore((state) => state.settings?.aspectRatio || "square");
+  const fitToCard = useStore((state) => state.settings?.fitToCard || false);
   const editMode = useStore((state) => state.editMode);
   const selectedNoteIds = useStore((state) => state.selectedNoteIds);
   const toggleNoteSelection = useStore((state) => state.toggleNoteSelection);
@@ -341,12 +383,14 @@ const NoteCard = ({ note }) => {
           fontClass={frontFontClass}
           isVisible={!isFlipped}
           globalTextShadow={globalTextShadow}
+          fitToCard={fitToCard}
         />
         <CardSide
           parsed={parsedBack}
           fontClass={backFontClass}
           isVisible={isFlipped}
           globalTextShadow={globalTextShadow}
+          fitToCard={fitToCard}
         />
 
         {/* Top-right: info button + global audio button */}

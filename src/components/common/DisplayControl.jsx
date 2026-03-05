@@ -73,6 +73,7 @@ const DisplayControl = () => {
   const gridSize = useStore((s) => s.settings?.gridSize || "medium");
   const aspectRatio = useStore((s) => s.settings?.aspectRatio || "square");
   const fontSize = useStore((s) => s.settings?.fontSize || "medium");
+  const fitToCard = useStore((s) => s.settings?.fitToCard || false);
   const updateSettings = useStore((s) => s.updateSettings);
 
   const fontSizeOptions = getFontSizeOptions();
@@ -142,10 +143,23 @@ const DisplayControl = () => {
 
         {/* Font size */}
         <div>
-          <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2">
-            Font Size
-          </p>
-          <div className="px-1">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">
+              Font Size
+            </p>
+            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={fitToCard}
+                onChange={(e) => updateSettings({ fitToCard: e.target.checked })}
+                className="w-3.5 h-3.5 rounded accent-blue-600 cursor-pointer"
+              />
+              <span className={`text-xs transition-colors ${fitToCard ? "text-blue-600 dark:text-blue-400 font-medium" : "text-gray-500 dark:text-gray-400"}`}>
+                Fit to card
+              </span>
+            </label>
+          </div>
+          <div className={`px-1 transition-opacity ${fitToCard ? "opacity-40 pointer-events-none" : ""}`}>
             <input
               type="range"
               min={0}
