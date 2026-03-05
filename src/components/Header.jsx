@@ -10,6 +10,7 @@ import Dropdown from "./common/Dropdown";
 import ViewSelector from "./views/ViewSelector";
 import ViewEditorModal from "./views/ViewEditorModal";
 import DisplayControl from "./common/DisplayControl";
+import SettingsMenu from "./settings/SettingsMenu";
 import useStore from "../store";
 
 const Header = () => {
@@ -120,18 +121,10 @@ const Header = () => {
                   </button>
                 }
                 align="right"
-                width="w-56"
+                width="w-80"
                 ariaLabel="Settings menu"
               >
-                {({ close }) => (
-                  <button
-                    onClick={() => { navigate("/settings"); close(); }}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                    role="menuitem"
-                  >
-                    ⚙️ Settings
-                  </button>
-                )}
+                <SettingsMenu />
               </Dropdown>
 
               <ThemeToggle />

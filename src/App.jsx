@@ -2,7 +2,6 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { useEffect } from "react";
 import CardBrowserPage from "./pages/CardBrowserPage";
 import Header from "./components/Header";
-import SettingsPage from "./pages/SettingsPage";
 import ErrorBoundary from "./components/common/ErrorBoundary";
 import Toast from "./components/common/Toast";
 import mediaCacheService from "./services/mediaCache";
@@ -35,7 +34,6 @@ function App() {
             <ErrorBoundary>
               <Routes>
                 <Route path="/" element={<CardBrowserPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
               </Routes>
             </ErrorBoundary>
           </main>
