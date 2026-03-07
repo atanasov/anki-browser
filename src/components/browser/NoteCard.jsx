@@ -9,6 +9,7 @@ import useStore from "../../store";
 import { getFallbackContent } from "../../utils/cardTemplates";
 import templateProcessor from "../../services/templateProcessor";
 import CardInfoModal from "./CardInfoModal";
+import SimilarWordsModal from "./SimilarWordsModal";
 import logger from "../../utils/logger";
 import { getFontSizeClass } from "../../utils/fontSizeHelpers";
 import { getCardDimensionClasses } from "../../utils/gridHelpers";
@@ -158,6 +159,7 @@ const NoteCard = ({ note }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [showSimilarWords, setShowSimilarWords] = useState(false);
 
   const [parsedFront, setParsedFront] = useState(EMPTY_PARSED);
   const [parsedBack, setParsedBack] = useState(EMPTY_PARSED);
@@ -169,6 +171,8 @@ const NoteCard = ({ note }) => {
   const imageField = activeView?.settings?.imageField || "";
   const showAudio = activeView?.settings?.showAudio || false;
   const audioField = activeView?.settings?.audioField || "";
+  const similarWordsConfig = activeView?.similarWords || null;
+  const similarWordsEnabled = similarWordsConfig?.enabled && similarWordsConfig?.wordField;
 
   const fontSizeClass = getFontSizeClass(fontSize);
   const cardDimensionClasses = getCardDimensionClasses(gridSize, aspectRatio);
@@ -397,9 +401,21 @@ const NoteCard = ({ note }) => {
           fitToCard={fitToCard}
         />
 
-        {/* Top-right: info button + global audio button */}
+        {/* Top-right: similar words + info buttons */}
         {isHovered && !editMode && (
           <div className="absolute top-2 right-2 flex gap-2 z-20">
+            {similarWordsEnabled && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowSimilarWords(true); }}
+                className="bg-purple-600 hover:bg-purple-700 text-white rounded-full p-2 shadow-lg transition-all duration-200 hover:scale-110"
+                title="Similar words"
+                aria-label="Show similar words"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
+              </button>
+            )}
             <button
               onClick={(e) => { e.stopPropagation(); setShowInfoModal(true); }}
               className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 shadow-lg transition-all duration-200 hover:scale-110"
@@ -410,7 +426,6 @@ const NoteCard = ({ note }) => {
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
               </svg>
             </button>
-
           </div>
         )}
 
@@ -502,6 +517,21 @@ const NoteCard = ({ note }) => {
         onClose={() => setShowInfoModal(false)}
         note={note}
       />
+
+      {similarWordsEnabled && showSimilarWords && (
+        <SimilarWordsModal
+          isOpen={showSimilarWords}
+          onClose={() => setShowSimilarWords(false)}
+          note={note}
+          config={{
+            deck: similarWordsConfig.deck || activeView.deck,
+            noteType: similarWordsConfig.noteType || activeView.noteType,
+            wordField: similarWordsConfig.wordField,
+            pinyinField: similarWordsConfig.pinyinField,
+            translationField: similarWordsConfig.translationField,
+          }}
+        />
+      )}
     </article>
   );
 };

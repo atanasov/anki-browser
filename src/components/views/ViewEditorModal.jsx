@@ -24,6 +24,14 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
     frontFields: [],
     backFields: [],
     rawQuery: "",
+    similarWords: {
+      enabled: false,
+      deck: "",
+      noteType: "",
+      wordField: "",
+      pinyinField: "",
+      translationField: "",
+    },
   });
 
   // UI state
@@ -42,6 +50,10 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
 
   // Advanced settings toggle
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+
+  // Similar words settings
+  const [showSimilarWordsSettings, setShowSimilarWordsSettings] = useState(false);
+  const [similarWordsFields, setSimilarWordsFields] = useState([]);
 
   // Load decks and note types on mount
   useEffect(() => {
@@ -82,6 +94,16 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
     formData.rawQuery,
   ]);
 
+  // Load fields for similar words note type when it changes
+  useEffect(() => {
+    const swNoteType = formData.similarWords?.noteType;
+    if (!swNoteType) {
+      setSimilarWordsFields([]);
+      return;
+    }
+    ankiConnect.getFieldNames(swNoteType).then(setSimilarWordsFields).catch(() => setSimilarWordsFields([]));
+  }, [formData.similarWords?.noteType]);
+
   // Populate form when editing
   useEffect(() => {
     if (viewToEdit) {
@@ -92,10 +114,20 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
         frontFields: viewToEdit.frontFields || [],
         backFields: viewToEdit.backFields || [],
         rawQuery: viewToEdit.rawQuery || "",
+        similarWords: viewToEdit.similarWords || {
+          enabled: false,
+          deck: "",
+          noteType: "",
+          wordField: "",
+          pinyinField: "",
+          translationField: "",
+        },
       });
-      // Show advanced settings if there's a custom raw query
       if (viewToEdit.rawQuery && viewToEdit.rawQuery.trim()) {
         setShowAdvancedSettings(true);
+      }
+      if (viewToEdit.similarWords?.enabled) {
+        setShowSimilarWordsSettings(true);
       }
     } else {
       // Reset form for new view
@@ -106,8 +138,17 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
         frontFields: [],
         backFields: [],
         rawQuery: "",
+        similarWords: {
+          enabled: false,
+          deck: "",
+          noteType: "",
+          wordField: "",
+          pinyinField: "",
+          translationField: "",
+        },
       });
       setShowAdvancedSettings(false);
+      setShowSimilarWordsSettings(false);
     }
   }, [viewToEdit, isOpen]);
 
@@ -207,6 +248,13 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
     setFormData((prev) => ({
       ...prev,
       backFields: prev.backFields.filter((f) => f !== field),
+    }));
+  };
+
+  const handleSimilarWordsChange = (field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      similarWords: { ...prev.similarWords, [field]: value },
     }));
   };
 
@@ -536,6 +584,129 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
             )}
           </div>
         )}
+
+        {/* Similar Words */}
+        <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => handleSimilarWordsChange("enabled", !formData.similarWords.enabled)}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${
+                  formData.similarWords.enabled ? "bg-blue-600" : "bg-gray-300 dark:bg-gray-600"
+                }`}
+                role="switch"
+                aria-checked={formData.similarWords.enabled}
+              >
+                <span
+                  className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                    formData.similarWords.enabled ? "translate-x-5" : "translate-x-1"
+                  }`}
+                />
+              </button>
+              <div>
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Similar Words
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Show related words sharing the same characters
+                </p>
+              </div>
+            </div>
+            {formData.similarWords.enabled && (
+              <button
+                type="button"
+                onClick={() => setShowSimilarWordsSettings(!showSimilarWordsSettings)}
+                className="flex items-center gap-2 px-3 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+              >
+                {showSimilarWordsSettings ? (
+                  <>
+                    <span>Hide</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                    </svg>
+                  </>
+                ) : (
+                  <>
+                    <span>Configure</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+
+          {formData.similarWords.enabled && showSimilarWordsSettings && (
+            <div className="mt-2 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 space-y-4">
+              {/* Deck + Note Type */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                    Deck
+                  </label>
+                  <select
+                    value={formData.similarWords.deck}
+                    onChange={(e) => handleSimilarWordsChange("deck", e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                  >
+                    <option value="">Same as view deck</option>
+                    {decks.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                    Note Type
+                  </label>
+                  <select
+                    value={formData.similarWords.noteType}
+                    onChange={(e) => handleSimilarWordsChange("noteType", e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                  >
+                    <option value="">Same as view note type</option>
+                    {noteTypes.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Field selectors */}
+              {(() => {
+                const fields = similarWordsFields.length > 0
+                  ? similarWordsFields
+                  : availableFields;
+                const FieldSelect = ({ label, field }) => (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                      {label}
+                    </label>
+                    <select
+                      value={formData.similarWords[field]}
+                      onChange={(e) => handleSimilarWordsChange(field, e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                    >
+                      <option value="">— none —</option>
+                      {fields.map((f) => (
+                        <option key={f} value={f}>{f}</option>
+                      ))}
+                    </select>
+                  </div>
+                );
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FieldSelect label="Word Field *" field="wordField" />
+                    <FieldSelect label="Pinyin Field" field="pinyinField" />
+                    <FieldSelect label="Translation Field" field="translationField" />
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+        </div>
 
         {/* Action Buttons */}
         <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">

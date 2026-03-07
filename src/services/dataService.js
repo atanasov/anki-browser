@@ -77,6 +77,14 @@ export const DEFAULT_VIEW = {
     showAudio: false,
     audioField: "",
   },
+  similarWords: {
+    enabled: false,
+    deck: "",
+    noteType: "",
+    wordField: "",
+    pinyinField: "",
+    translationField: "",
+  },
   // Advanced query (optional - for power users)
   rawQuery: "", // e.g., "deck:MyDeck note:MyNote is:due"
   // Metadata
