@@ -18,7 +18,10 @@ const SimilarWordsModal = ({ isOpen, onClose, note, config }) => {
 
   const rawWord = extractFieldValue(note?.fields?.[config?.wordField]);
   const word = rawWord.replace(/<[^>]*>/g, "").trim();
-  const characters = word ? [...new Set([...word])] : [];
+  // Only keep actual Hanzi/meaningful characters, skip spaces and punctuation
+  const characters = word
+    ? [...new Set([...word])].filter((c) => /\S/.test(c) && c !== "·" && c !== "、")
+    : [];
 
   const fetchResults = useCallback(async () => {
     if (!word || characters.length === 0) return;

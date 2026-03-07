@@ -16,6 +16,7 @@ const useStore = create((set) => ({
   editMode: false,
   selectedNoteIds: [],
   searchQuery: "", // temporary text search, cleared on view switch
+  currentPageNoteIds: [], // note IDs currently visible on the card browser page
 
   // Sync method — preserves session state that isn't in dataService
   sync: () =>
@@ -90,6 +91,7 @@ const useStore = create((set) => ({
   },
 
   setSearchQuery: (q) => set({ searchQuery: q }),
+  setCurrentPageNoteIds: (ids) => set({ currentPageNoteIds: ids }),
 
   // Edit mode
   toggleEditMode: () =>

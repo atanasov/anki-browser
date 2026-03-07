@@ -11,6 +11,8 @@ import ViewSelector from "./views/ViewSelector";
 import ViewEditorModal from "./views/ViewEditorModal";
 import DisplayControl from "./common/DisplayControl";
 import SettingsMenu from "./settings/SettingsMenu";
+import PracticeSetupModal from "./practice/PracticeSetupModal";
+import PracticeSession from "./practice/PracticeSession";
 import useStore from "../store";
 
 const Header = () => {
@@ -20,6 +22,8 @@ const Header = () => {
 
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewToEdit, setViewToEdit] = useState(null);
+  const [isPracticeSetupOpen, setIsPracticeSetupOpen] = useState(false);
+  const [practiceSessionOptions, setPracticeSessionOptions] = useState(null);
 
   const activeViewId = useStore((state) => state.settings.activeViewId);
   const getView = useStore((state) => state.getView);
@@ -28,6 +32,7 @@ const Header = () => {
   const toggleEditMode = useStore((state) => state.toggleEditMode);
   const searchQuery = useStore((state) => state.searchQuery);
   const setSearchQuery = useStore((state) => state.setSearchQuery);
+  const selectedNoteIds = useStore((state) => state.selectedNoteIds);
 
   const activeView = activeViewId ? getView(activeViewId) : null;
   const searchRef = useRef(null);
@@ -89,17 +94,26 @@ const Header = () => {
                 )}
 
                 {activeView && (
-                  <button
-                    onClick={toggleEditMode}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors shrink-0 ${
-                      editMode
-                        ? "bg-amber-50 dark:bg-amber-900/30 border-amber-300 dark:border-amber-600 text-amber-700 dark:text-amber-300"
-                        : "border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                    }`}
-                    title={editMode ? "Exit edit mode" : "Enter edit mode to bulk-edit cards"}
-                  >
-                    {editMode ? "✎ Editing" : "✎ Edit"}
-                  </button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={toggleEditMode}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                        editMode
+                          ? "bg-amber-50 dark:bg-amber-900/30 border-amber-300 dark:border-amber-600 text-amber-700 dark:text-amber-300"
+                          : "border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      }`}
+                      title={editMode ? "Exit edit mode" : "Enter edit mode to bulk-edit cards"}
+                    >
+                      {editMode ? "✎ Editing" : "✎ Edit"}
+                    </button>
+                    <button
+                      onClick={() => setIsPracticeSetupOpen(true)}
+                      className="px-3 py-1.5 text-xs font-medium rounded-lg border border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
+                      title="Practice cards"
+                    >
+                      ▶ Practice
+                    </button>
+                  </div>
                 )}
               </div>
             )}
@@ -139,6 +153,28 @@ const Header = () => {
           isOpen={isViewModalOpen}
           onClose={() => { setIsViewModalOpen(false); setViewToEdit(null); }}
           viewToEdit={viewToEdit}
+        />
+      )}
+
+      {/* Practice setup */}
+      {isHomePage && activeView && (
+        <PracticeSetupModal
+          isOpen={isPracticeSetupOpen}
+          onClose={() => setIsPracticeSetupOpen(false)}
+          onStart={(opts) => {
+            setIsPracticeSetupOpen(false);
+            setPracticeSessionOptions(opts);
+          }}
+          view={activeView}
+          selectedNoteIds={selectedNoteIds}
+        />
+      )}
+
+      {/* Practice session (full-screen overlay) */}
+      {practiceSessionOptions && (
+        <PracticeSession
+          sessionOptions={practiceSessionOptions}
+          onClose={() => setPracticeSessionOptions(null)}
         />
       )}
     </>

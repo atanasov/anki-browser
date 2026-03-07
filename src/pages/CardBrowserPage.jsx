@@ -18,6 +18,7 @@ const CardBrowser = () => {
   const editMode = useStore((state) => state.editMode);
   const searchQuery = useStore((state) => state.searchQuery);
   const setSearchQuery = useStore((state) => state.setSearchQuery);
+  const setCurrentPageNoteIds = useStore((state) => state.setCurrentPageNoteIds);
 
   const [isCreateViewModalOpen, setIsCreateViewModalOpen] = useState(false);
   const [notes, setNotes] = useState([]);
@@ -84,6 +85,7 @@ const CardBrowser = () => {
         }));
 
         setNotes(transformedNotes);
+        setCurrentPageNoteIds(transformedNotes.map((n) => n.note_id));
         setPagination((prev) => ({ ...prev, ...result.pagination, currentPage: page }));
       } catch (err) {
         logger.error("Error loading notes:", err);
