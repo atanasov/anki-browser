@@ -32,6 +32,17 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
       pronunciationField: "",
       translationField: "",
     },
+    examples: {
+      enabled: false,
+      deck: "",
+      noteType: "",
+      wordField: "",
+      sentenceField: "",
+      pronunciationField: "",
+      meaningField: "",
+      audioField: "",
+      imageField: "",
+    },
   });
 
   // UI state
@@ -54,6 +65,10 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
   // Similar words settings
   const [showSimilarWordsSettings, setShowSimilarWordsSettings] = useState(false);
   const [similarWordsFields, setSimilarWordsFields] = useState([]);
+
+  // Examples settings
+  const [showExamplesSettings, setShowExamplesSettings] = useState(false);
+  const [examplesFields, setExamplesFields] = useState([]);
 
   // Load decks and note types on mount
   useEffect(() => {
@@ -104,6 +119,16 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
     ankiConnect.getFieldNames(swNoteType).then(setSimilarWordsFields).catch(() => setSimilarWordsFields([]));
   }, [formData.similarWords?.noteType]);
 
+  // Load fields for examples note type when it changes
+  useEffect(() => {
+    const exNoteType = formData.examples?.noteType;
+    if (!exNoteType) {
+      setExamplesFields([]);
+      return;
+    }
+    ankiConnect.getFieldNames(exNoteType).then(setExamplesFields).catch(() => setExamplesFields([]));
+  }, [formData.examples?.noteType]);
+
   // Populate form when editing
   useEffect(() => {
     if (viewToEdit) {
@@ -122,12 +147,26 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
           pronunciationField: "",
           translationField: "",
         },
+        examples: viewToEdit.examples || {
+          enabled: false,
+          deck: "",
+          noteType: "",
+          wordField: "",
+          sentenceField: "",
+          pronunciationField: "",
+          meaningField: "",
+          audioField: "",
+          imageField: "",
+        },
       });
       if (viewToEdit.rawQuery && viewToEdit.rawQuery.trim()) {
         setShowAdvancedSettings(true);
       }
       if (viewToEdit.similarWords?.enabled) {
         setShowSimilarWordsSettings(true);
+      }
+      if (viewToEdit.examples?.enabled) {
+        setShowExamplesSettings(true);
       }
     } else {
       // Reset form for new view
@@ -146,9 +185,22 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
           pronunciationField: "",
           translationField: "",
         },
+        examples: {
+          enabled: false,
+          deck: "",
+          noteType: "",
+          keyField: "",
+          deckKeyField: "",
+          sentenceField: "",
+          pronunciationField: "",
+          meaningField: "",
+          audioField: "",
+          imageField: "",
+        },
       });
       setShowAdvancedSettings(false);
       setShowSimilarWordsSettings(false);
+      setShowExamplesSettings(false);
     }
   }, [viewToEdit, isOpen]);
 
@@ -255,6 +307,13 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
     setFormData((prev) => ({
       ...prev,
       similarWords: { ...prev.similarWords, [field]: value },
+    }));
+  };
+
+  const handleExamplesChange = (field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      examples: { ...prev.examples, [field]: value },
     }));
   };
 
@@ -707,6 +766,148 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
                   })}
                 </div>
               )}
+            </div>
+          )}
+        </div>
+
+        {/* Examples */}
+        <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => handleExamplesChange("enabled", !formData.examples.enabled)}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${
+                  formData.examples.enabled ? "bg-orange-500" : "bg-gray-300 dark:bg-gray-600"
+                }`}
+                role="switch"
+                aria-checked={formData.examples.enabled}
+              >
+                <span
+                  className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                    formData.examples.enabled ? "translate-x-5" : "translate-x-1"
+                  }`}
+                />
+              </button>
+              <div>
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Example Sentences
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Show sentences from a sentences deck linked by a key field
+                </p>
+              </div>
+            </div>
+            {formData.examples.enabled && (
+              <button
+                type="button"
+                onClick={() => setShowExamplesSettings(!showExamplesSettings)}
+                className="flex items-center gap-2 px-3 py-2 text-sm text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors"
+              >
+                {showExamplesSettings ? (
+                  <>
+                    <span>Hide</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                    </svg>
+                  </>
+                ) : (
+                  <>
+                    <span>Configure</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+
+          {formData.examples.enabled && showExamplesSettings && (
+            <div className="mt-2 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 space-y-4">
+              {/* Sentences deck + note type */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                    Sentences Deck *
+                  </label>
+                  <select
+                    value={formData.examples.deck}
+                    onChange={(e) => handleExamplesChange("deck", e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                  >
+                    <option value="">Select deck...</option>
+                    {decks.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                    Sentences Note Type
+                  </label>
+                  <select
+                    value={formData.examples.noteType}
+                    onChange={(e) => handleExamplesChange("noteType", e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                  >
+                    <option value="">Any note type</option>
+                    {noteTypes.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Word field on source card */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                  Word Field (search term from this card) *
+                </label>
+                <select
+                  value={formData.examples.wordField}
+                  onChange={(e) => handleExamplesChange("wordField", e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                >
+                  <option value="">Select field...</option>
+                  {availableFields.map((f) => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  The word text will be searched inside the Sentence Field below
+                </p>
+              </div>
+
+              {/* Display fields */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[
+                  { label: "Sentence Field *",      field: "sentenceField" },
+                  { label: "Pronunciation Field",   field: "pronunciationField" },
+                  { label: "Meaning Field",         field: "meaningField" },
+                  { label: "Audio Field",      field: "audioField" },
+                  { label: "Image Field",      field: "imageField" },
+                ].map(({ label, field }) => {
+                  const fields = examplesFields.length > 0 ? examplesFields : availableFields;
+                  return (
+                    <div key={field}>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                        {label}
+                      </label>
+                      <select
+                        value={formData.examples[field]}
+                        onChange={(e) => handleExamplesChange(field, e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                      >
+                        <option value="">— none —</option>
+                        {fields.map((f) => (
+                          <option key={f} value={f}>{f}</option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>

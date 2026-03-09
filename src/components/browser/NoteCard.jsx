@@ -10,6 +10,7 @@ import { getFallbackContent } from "../../utils/cardTemplates";
 import templateProcessor from "../../services/templateProcessor";
 import CardInfoModal from "./CardInfoModal";
 import SimilarWordsModal from "./SimilarWordsModal";
+import ExamplesModal from "./ExamplesModal";
 import logger from "../../utils/logger";
 import { getFontSizeClass } from "../../utils/fontSizeHelpers";
 import { getCardDimensionClasses } from "../../utils/gridHelpers";
@@ -160,6 +161,7 @@ const NoteCard = ({ note }) => {
   const [isFlipped, setIsFlipped] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showSimilarWords, setShowSimilarWords] = useState(false);
+  const [showExamples, setShowExamples] = useState(false);
 
   const [parsedFront, setParsedFront] = useState(EMPTY_PARSED);
   const [parsedBack, setParsedBack] = useState(EMPTY_PARSED);
@@ -173,6 +175,8 @@ const NoteCard = ({ note }) => {
   const audioField = activeView?.settings?.audioField || "";
   const similarWordsConfig = activeView?.similarWords || null;
   const similarWordsEnabled = similarWordsConfig?.enabled && similarWordsConfig?.wordField;
+  const examplesConfig = activeView?.examples || null;
+  const examplesEnabled = examplesConfig?.enabled && examplesConfig?.wordField && examplesConfig?.deck && examplesConfig?.sentenceField;
 
   const fontSizeClass = getFontSizeClass(fontSize);
   const cardDimensionClasses = getCardDimensionClasses(gridSize, aspectRatio);
@@ -404,6 +408,18 @@ const NoteCard = ({ note }) => {
         {/* Top-right: similar words + info buttons */}
         {isHovered && !editMode && (
           <div className="absolute top-2 right-2 flex gap-2 z-20">
+            {examplesEnabled && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowExamples(true); }}
+                className="bg-orange-500 hover:bg-orange-600 text-white rounded-full p-2 shadow-lg transition-all duration-200 hover:scale-110"
+                title="Example sentences"
+                aria-label="Show example sentences"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+              </button>
+            )}
             {similarWordsEnabled && (
               <button
                 onClick={(e) => { e.stopPropagation(); setShowSimilarWords(true); }}
@@ -529,6 +545,24 @@ const NoteCard = ({ note }) => {
             wordField: similarWordsConfig.wordField,
             pronunciationField: similarWordsConfig.pronunciationField,
             translationField: similarWordsConfig.translationField,
+          }}
+        />
+      )}
+
+      {examplesEnabled && showExamples && (
+        <ExamplesModal
+          isOpen={showExamples}
+          onClose={() => setShowExamples(false)}
+          note={note}
+          config={{
+            deck: examplesConfig.deck,
+            noteType: examplesConfig.noteType || "",
+            wordField: examplesConfig.wordField,
+            sentenceField: examplesConfig.sentenceField,
+            pronunciationField: examplesConfig.pronunciationField || "",
+            meaningField: examplesConfig.meaningField || "",
+            audioField: examplesConfig.audioField || "",
+            imageField: examplesConfig.imageField || "",
           }}
         />
       )}
