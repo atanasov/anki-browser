@@ -59,6 +59,8 @@ export const DEFAULT_APP_DATA = {
     gridSize: "medium", // "small" | "medium" | "large"
     aspectRatio: "square", // "square" | "portrait" | "landscape"
     fitToCard: false, // auto-size font to fill card
+    uiScale: 1.0, // Global UI zoom: 0.85 | 0.9 | 1.0 | 1.1 | 1.2 | 1.35
+    practiceFontSize: "xlarge", // Practice Q&A font: small | medium | large | xlarge | xxlarge
   },
   views: [],
 };

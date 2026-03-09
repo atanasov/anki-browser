@@ -1,16 +1,27 @@
 /**
  * SettingsMenu
  * Compact inline settings panel for the header cog dropdown.
- * Combines AnkiConnect config, backup/restore, and data reset.
+ * Combines display scale, AnkiConnect config, backup/restore, and data reset.
  */
 
 import { useState, useEffect, useRef } from "react";
 import dataService from "../../services/dataService";
 import ankiConnect from "../../services/ankiConnect";
 import mediaCacheService from "../../services/mediaCache";
+import uiScaleService, { UI_SCALE_OPTIONS } from "../../services/uiScaleService";
 import useStore from "../../store";
 import { toast } from "../../store/toastStore";
+import { getFontSizeOptions } from "../../utils/fontSizeHelpers";
 import logger from "../../utils/logger";
+
+// Practice font size maps to adaptiveFont maxIndex in PracticeSession
+const PRACTICE_SIZE_OPTIONS = [
+  { value: "small",   label: "S"  },
+  { value: "medium",  label: "M"  },
+  { value: "large",   label: "L"  },
+  { value: "xlarge",  label: "XL" },
+  { value: "xxlarge", label: "2XL"},
+];
 
 const SettingsMenu = () => {
   // AnkiConnect
@@ -18,6 +29,11 @@ const SettingsMenu = () => {
   const [ankiToken, setAnkiToken] = useState("");
   const [connStatus, setConnStatus] = useState(null);
   const [isTesting, setIsTesting] = useState(false);
+
+  // Display
+  const updateSettings = useStore((s) => s.updateSettings);
+  const practiceFontSize = useStore((s) => s.settings?.practiceFontSize || "xlarge");
+  const [uiScale, setUiScaleState] = useState(() => uiScaleService.getScale());
 
   // Backup / restore
   const exportData = useStore((s) => s.exportData);
@@ -32,6 +48,12 @@ const SettingsMenu = () => {
     setAnkiUrl(dataService.getSetting("ankiConnectUrl", "http://localhost:8765"));
     setAnkiToken(dataService.getSetting("ankiConnectToken", ""));
   }, []);
+
+  const handleSetUiScale = (scale) => {
+    setUiScaleState(scale);
+    uiScaleService.setScale(scale);
+    updateSettings({ uiScale: scale });
+  };
 
   const testConnection = async () => {
     setIsTesting(true);
@@ -110,17 +132,68 @@ const SettingsMenu = () => {
     }
   };
 
-  const inp = "w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500";
-  const lbl = "block text-xs text-gray-500 dark:text-gray-400 mb-0.5";
-  const btnBlue = "px-2.5 py-1 text-xs font-medium rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50";
-  const btnGreen = "px-2.5 py-1 text-xs font-medium rounded bg-green-600 hover:bg-green-700 text-white transition-colors";
-  const btnGray = "px-2.5 py-1 text-xs font-medium rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 transition-colors";
-  const btnRed = "px-2.5 py-1 text-xs font-medium rounded bg-red-600 hover:bg-red-700 text-white transition-colors";
+  const inp = "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500";
+  const lbl = "block text-sm text-gray-500 dark:text-gray-400 mb-0.5";
+  const btnBlue = "px-3 py-1.5 text-sm font-medium rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50";
+  const btnGreen = "px-3 py-1.5 text-sm font-medium rounded bg-green-600 hover:bg-green-700 text-white transition-colors";
+  const btnGray = "px-3 py-1.5 text-sm font-medium rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 transition-colors";
+  const btnRed = "px-3 py-1.5 text-sm font-medium rounded bg-red-600 hover:bg-red-700 text-white transition-colors";
   const divider = <div className="border-t border-gray-100 dark:border-gray-700" />;
-  const sectionTitle = "text-xs font-semibold text-gray-700 dark:text-gray-200 mb-2";
+  const sectionTitle = "text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2";
 
   return (
-    <div className="px-3 py-2 space-y-3 max-h-[80vh] overflow-y-auto text-sm">
+    <div className="px-3 py-2 space-y-3 max-h-[80vh] overflow-y-auto">
+
+      {/* Display */}
+      <div>
+        <p className={sectionTitle}>Display</p>
+        <div className="space-y-3">
+
+          {/* UI Scale */}
+          <div>
+            <label className={lbl}>UI Scale</label>
+            <div className="flex gap-1 flex-wrap">
+              {UI_SCALE_OPTIONS.map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => handleSetUiScale(value)}
+                  className={`px-2.5 py-1 text-sm rounded font-medium transition-colors ${
+                    uiScale === value
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Practice Size */}
+          <div>
+            <label className={lbl}>Practice Q&A Size</label>
+            <div className="flex gap-1">
+              {PRACTICE_SIZE_OPTIONS.map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => updateSettings({ practiceFontSize: value })}
+                  className={`px-2.5 py-1 text-sm rounded font-medium transition-colors ${
+                    practiceFontSize === value
+                      ? "bg-purple-600 text-white"
+                      : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {divider}
+
       {/* AnkiConnect */}
       <div>
         <p className={sectionTitle}>AnkiConnect</p>
@@ -138,7 +211,7 @@ const SettingsMenu = () => {
             <button onClick={saveAnkiSettings} className={btnGreen}>Save</button>
           </div>
           {connStatus && (
-            <p className={`text-xs ${connStatus.ok ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+            <p className={`text-sm ${connStatus.ok ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
               {connStatus.msg}
             </p>
           )}
@@ -158,8 +231,8 @@ const SettingsMenu = () => {
           </div>
         ) : (
           <div className="space-y-2">
-            <p className="text-xs text-blue-700 dark:text-blue-300 truncate">File: {pendingImport.filename}</p>
-            <p className="text-xs text-gray-600 dark:text-gray-400">How should this be imported?</p>
+            <p className="text-sm text-blue-700 dark:text-blue-300 truncate">File: {pendingImport.filename}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">How should this be imported?</p>
             <div className="flex gap-2 flex-wrap">
               <button onClick={() => handleConfirmImport(false)} className={btnGray}>Merge views</button>
               <button onClick={() => handleConfirmImport(true)} className={btnRed}>Overwrite all</button>
@@ -178,7 +251,7 @@ const SettingsMenu = () => {
           <button onClick={() => setShowReset(true)} className={btnRed}>Reset All Data</button>
         ) : (
           <div className="space-y-2">
-            <p className="text-xs text-red-700 dark:text-red-400 font-medium">
+            <p className="text-sm text-red-700 dark:text-red-400 font-medium">
               This deletes all views, settings, and cache. Cannot be undone.
             </p>
             <div className="flex gap-2">
@@ -195,9 +268,9 @@ const SettingsMenu = () => {
         href="https://github.com/atanasov/anki-browser"
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+        className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
       >
-        <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
         </svg>
         View on GitHub

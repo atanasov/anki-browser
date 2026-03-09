@@ -13,7 +13,7 @@ import logger from "../../utils/logger";
 const SimilarWordsModal = ({ isOpen, onClose, note, config }) => {
   const [results, setResults] = useState({});
   const [loading, setLoading] = useState(false);
-  const [studiedOnly, setStudiedOnly] = useState(false);
+  const [studiedOnly, setStudiedOnly] = useState(true);
   const [error, setError] = useState(null);
 
   const rawWord = extractFieldValue(note?.fields?.[config?.wordField]);
@@ -75,7 +75,7 @@ const SimilarWordsModal = ({ isOpen, onClose, note, config }) => {
       isOpen={isOpen}
       onClose={onClose}
       title={`Similar Words: ${word}`}
-      maxWidth="max-w-3xl"
+      maxWidth="max-w-5xl"
     >
       <div className="space-y-4">
         {/* Studied only toggle */}
@@ -144,39 +144,39 @@ const SimilarWordsModal = ({ isOpen, onClose, note, config }) => {
                 className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden flex flex-col"
               >
                 {/* Column header */}
-                <div className="bg-gray-50 dark:bg-gray-800/80 px-3 py-2 border-b border-gray-200 dark:border-gray-700 flex items-baseline gap-2">
-                  <span className="text-2xl font-bold text-gray-800 dark:text-gray-100">
+                <div className="bg-gray-50 dark:bg-gray-800/80 px-3 py-3 border-b border-gray-200 dark:border-gray-700 flex items-baseline gap-2">
+                  <span className="text-7xl font-bold text-gray-800 dark:text-gray-100">
                     {char}
                   </span>
-                  <span className="text-xs text-gray-400 dark:text-gray-500">
+                  <span className="text-xl text-gray-400 dark:text-gray-500">
                     {results[char]?.length ?? "…"}
                   </span>
                 </div>
 
                 {/* Results list */}
-                <div className="divide-y divide-gray-100 dark:divide-gray-700/60 max-h-72 overflow-y-auto">
+                <div className="divide-y divide-gray-100 dark:divide-gray-700/60 max-h-[78vh] overflow-y-auto">
                   {!results[char] || results[char].length === 0 ? (
-                    <div className="px-3 py-5 text-xs text-gray-400 dark:text-gray-500 text-center">
+                    <div className="px-3 py-5 text-sm text-gray-400 dark:text-gray-500 text-center">
                       No matches
                     </div>
                   ) : (
                     results[char].map((n) => (
                       <div
                         key={n.noteId}
-                        className="px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                        className="px-3 py-2 flex items-baseline gap-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                       >
-                        <div className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
+                        <span className="font-semibold text-gray-900 dark:text-gray-100 text-4xl shrink-0">
                           {getText(n, config.wordField)}
-                        </div>
+                        </span>
                         {config.pronunciationField && (
-                          <div className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">
+                          <span className="text-2xl text-blue-600 dark:text-blue-400 shrink-0">
                             {getText(n, config.pronunciationField)}
-                          </div>
+                          </span>
                         )}
                         {config.translationField && (
-                          <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                          <span className="text-2xl text-gray-500 dark:text-gray-400 truncate min-w-0">
                             {getText(n, config.translationField)}
-                          </div>
+                          </span>
                         )}
                       </div>
                     ))

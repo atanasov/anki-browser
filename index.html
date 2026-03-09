@@ -16,11 +16,12 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
 
-    <!-- Theme initialization script - runs before page render to prevent flash -->
+    <!-- Theme + UI scale initialization - runs before page render to prevent flash -->
     <script>
       (function () {
         try {
           var data = JSON.parse(localStorage.getItem("anki-games-data") || "{}");
+          // Theme
           var theme = data.theme || "system";
           var systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
             ? "dark"
@@ -28,6 +29,11 @@
           var actualTheme = theme === "system" ? systemTheme : theme;
           if (actualTheme === "dark") {
             document.documentElement.classList.add("dark");
+          }
+          // UI Scale — set root font-size so all rem-based Tailwind classes scale together
+          var scale = data.settings && data.settings.uiScale ? data.settings.uiScale : 1.0;
+          if (scale !== 1.0) {
+            document.documentElement.style.fontSize = (16 * scale) + "px";
           }
         } catch (e) {
           if (window.matchMedia("(prefers-color-scheme: dark)").matches) {

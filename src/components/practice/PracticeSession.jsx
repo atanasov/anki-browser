@@ -5,13 +5,23 @@
 
 import { useEffect, useCallback, useState } from "react";
 import { usePracticeSession, TYPES } from "../../hooks/usePracticeSession";
+import useStore from "../../store";
 
-// Step down from text-5xl based on text length.
+// Step down from the configured max size based on text length.
 // Chinese chars are square (wide), Latin chars are narrower — but length is still
 // the best single proxy without DOM measurement.
 const FONT_SIZES = ["text-lg", "text-xl", "text-2xl", "text-3xl", "text-4xl", "text-5xl"];
 
-const adaptiveFont = (text, maxIndex = 5) => {
+// Map practiceFontSize setting to a maxIndex for adaptiveFont
+const PRACTICE_SIZE_TO_MAX_INDEX = {
+  small:   1,
+  medium:  2,
+  large:   3,
+  xlarge:  4,
+  xxlarge: 5,
+};
+
+const adaptiveFont = (text, maxIndex = 4) => {
   const len = (text || "").length;
   const step = len > 45 ? 4 : len > 28 ? 3 : len > 15 ? 2 : len > 8 ? 1 : 0;
   return FONT_SIZES[Math.max(0, maxIndex - step)];
@@ -196,6 +206,8 @@ const EndScreen = ({ report, onRestart, onClose }) => {
 // ─── Session ───────────────────────────────────────────────────────────────
 const PracticeSession = ({ sessionOptions, onClose }) => {
   const session = usePracticeSession();
+  const practiceFontSize = useStore((s) => s.settings?.practiceFontSize || "xlarge");
+  const practiceMaxIndex = PRACTICE_SIZE_TO_MAX_INDEX[practiceFontSize] ?? 4;
 
   const doStart = useCallback((weakNoteIds = null) => {
     if (!sessionOptions) return;
@@ -303,12 +315,12 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
               </p>
 
               {currentQuestion.type === TYPES.SENTENCE_CLOZE ? (
-                <p className={`text-gray-900 dark:text-gray-100 leading-relaxed ${adaptiveFont(currentQuestion.prompt, 4)}`}>
+                <p className={`text-gray-900 dark:text-gray-100 leading-relaxed ${adaptiveFont(currentQuestion.prompt, Math.max(1, practiceMaxIndex - 1))}`}>
                   <ClozePrompt prompt={currentQuestion.prompt} />
                 </p>
               ) : (
                 <>
-                  <p className={`font-bold text-gray-900 dark:text-gray-100 leading-tight break-words ${adaptiveFont(currentQuestion.prompt, 5)}`}>
+                  <p className={`font-bold text-gray-900 dark:text-gray-100 leading-tight break-words ${adaptiveFont(currentQuestion.prompt, practiceMaxIndex)}`}>
                     {currentQuestion.prompt}
                   </p>
                   {/* Sentence context — only for types where the word IS the prompt (safe to highlight it) */}
@@ -336,7 +348,7 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
                   className={optionStyle(i)}
                 >
                   {/* Main option text — font scales with length */}
-                  <span className={`font-bold leading-tight break-words ${adaptiveFont(optText(opt), 5)} ${optionTextColor(i)}`}>
+                  <span className={`font-bold leading-tight break-words ${adaptiveFont(optText(opt), practiceMaxIndex)} ${optionTextColor(i)}`}>
                     {optText(opt)}
                   </span>
                   {/* Reserved hint line — always rendered, invisible when not needed */}

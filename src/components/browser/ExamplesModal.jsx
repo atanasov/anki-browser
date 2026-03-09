@@ -67,24 +67,24 @@ const SentenceRow = ({ note, config }) => {
   if (!sentence) return null;
 
   return (
-    <div className="flex gap-3 py-3 border-b border-gray-100 dark:border-gray-700/60 last:border-0">
+    <div className="flex gap-4 py-4 border-b border-gray-100 dark:border-gray-700/60 last:border-0">
       {imageSrc && (
         <img
           src={imageSrc}
           alt=""
-          className="shrink-0 w-16 h-16 rounded-lg object-cover border border-gray-200 dark:border-gray-700"
+          className="shrink-0 w-20 h-20 rounded-lg object-cover border border-gray-200 dark:border-gray-700"
         />
       )}
 
       <div className="flex-1 min-w-0">
-        <p className="text-base font-medium text-gray-900 dark:text-gray-100 leading-snug">
+        <p className="text-5xl font-medium text-gray-900 dark:text-gray-100 leading-snug">
           {sentence}
         </p>
         {pronunciation && (
-          <p className="text-sm text-blue-600 dark:text-blue-400 mt-0.5">{pronunciation}</p>
+          <p className="text-3xl text-blue-600 dark:text-blue-400 mt-1">{pronunciation}</p>
         )}
         {meaning && (
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 truncate">{meaning}</p>
+          <p className="text-3xl text-gray-500 dark:text-gray-400 mt-0.5 truncate">{meaning}</p>
         )}
       </div>
 
@@ -137,7 +137,7 @@ const ExamplesModal = ({ isOpen, onClose, note, config }) => {
   }, [isOpen, word, fetchExamples]);
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Examples: ${word}`} maxWidth="max-w-2xl">
+    <Modal isOpen={isOpen} onClose={onClose} title={`Examples: ${word}`} maxWidth="max-w-4xl">
       <div className="space-y-2">
         {error && (
           <div className="p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg text-red-700 dark:text-red-300 text-sm">
@@ -161,7 +161,7 @@ const ExamplesModal = ({ isOpen, onClose, note, config }) => {
             No examples found for <strong>{word}</strong>.
           </p>
         ) : (
-          <div className="max-h-[60vh] overflow-y-auto -mx-1 px-1">
+          <div className="max-h-[80vh] overflow-y-auto -mx-1 px-1">
             <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">
               {results.length} example{results.length !== 1 ? "s" : ""}
             </p>
