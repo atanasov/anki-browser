@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useCallback, useState } from "react";
-import { usePracticeSession } from "../../hooks/usePracticeSession";
+import { usePracticeSession, TYPES } from "../../hooks/usePracticeSession";
 
 // Step down from text-5xl based on text length.
 // Chinese chars are square (wide), Latin chars are narrower — but length is still
@@ -15,6 +15,34 @@ const adaptiveFont = (text, maxIndex = 5) => {
   const len = (text || "").length;
   const step = len > 45 ? 4 : len > 28 ? 3 : len > 15 ? 2 : len > 8 ? 1 : 0;
   return FONT_SIZES[Math.max(0, maxIndex - step)];
+};
+
+// Sentence with the target word highlighted in orange (used as context on word-prompt types).
+const SentenceWithHighlight = ({ sentence, word }) => {
+  if (!word || !sentence.includes(word)) return <>{sentence}</>;
+  const idx = sentence.indexOf(word);
+  return (
+    <>
+      {sentence.slice(0, idx)}
+      <span className="font-semibold text-orange-500 dark:text-orange-400">{word}</span>
+      {sentence.slice(idx + word.length)}
+    </>
+  );
+};
+
+// Sentence cloze prompt: renders the gap as a bold styled placeholder.
+const ClozePrompt = ({ prompt }) => {
+  const parts = prompt.split("[___]");
+  if (parts.length < 2) return <>{prompt}</>;
+  return (
+    <>
+      {parts[0]}
+      <span className="inline-block mx-1 px-3 py-0.5 rounded-lg bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 font-bold tracking-widest border-b-2 border-orange-400">
+        ？？？
+      </span>
+      {parts[1]}
+    </>
+  );
 };
 
 // ─── End Screen ────────────────────────────────────────────────────────────
@@ -273,9 +301,29 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
               <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-5">
                 {currentQuestion.promptLabel}
               </p>
-              <p className={`font-bold text-gray-900 dark:text-gray-100 leading-tight break-words ${adaptiveFont(currentQuestion.prompt, 5)}`}>
-                {currentQuestion.prompt}
-              </p>
+
+              {currentQuestion.type === TYPES.SENTENCE_CLOZE ? (
+                <p className={`text-gray-900 dark:text-gray-100 leading-relaxed ${adaptiveFont(currentQuestion.prompt, 4)}`}>
+                  <ClozePrompt prompt={currentQuestion.prompt} />
+                </p>
+              ) : (
+                <>
+                  <p className={`font-bold text-gray-900 dark:text-gray-100 leading-tight break-words ${adaptiveFont(currentQuestion.prompt, 5)}`}>
+                    {currentQuestion.prompt}
+                  </p>
+                  {/* Sentence context — only for types where the word IS the prompt (safe to highlight it) */}
+                  {currentQuestion.sentence &&
+                    (currentQuestion.type === TYPES.WORD_MEANING ||
+                     currentQuestion.type === TYPES.WORD_PRONUNCIATION) && (
+                    <p className="mt-5 text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                      <SentenceWithHighlight
+                        sentence={currentQuestion.sentence}
+                        word={currentQuestion.word}
+                      />
+                    </p>
+                  )}
+                </>
+              )}
             </div>
 
             {/* Answer options — 2×3 grid (6 options) */}

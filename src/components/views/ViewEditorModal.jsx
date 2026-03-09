@@ -31,6 +31,7 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
       wordField: "",
       pronunciationField: "",
       translationField: "",
+      sentenceField: "",
     },
     examples: {
       enabled: false,
@@ -741,9 +742,9 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
               ].length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {[
-                    { label: "Word Field *",     field: "wordField" },
-                    { label: "Pronunciation Field",      field: "pronunciationField" },
-                    { label: "Translation Field", field: "translationField" },
+                    { label: "Word Field *",        field: "wordField" },
+                    { label: "Pronunciation Field",  field: "pronunciationField" },
+                    { label: "Translation Field",    field: "translationField" },
                   ].map(({ label, field }) => {
                     const fields = similarWordsFields.length > 0 ? similarWordsFields : availableFields;
                     return (

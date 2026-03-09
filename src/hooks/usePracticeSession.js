@@ -9,25 +9,28 @@ import { extractFieldValue } from "../utils/fieldHelpers";
 
 // ─── Exercise types ────────────────────────────────────────────────────────
 export const TYPES = {
-  WORD_MEANING: "word-meaning",
-  MEANING_WORD: "meaning-word",
-  WORD_PRONUNCIATION:  "word-pronunciation",
-  PRONUNCIATION_WORD:  "pronunciation-word",
+  WORD_MEANING:       "word-meaning",
+  MEANING_WORD:       "meaning-word",
+  WORD_PRONUNCIATION: "word-pronunciation",
+  PRONUNCIATION_WORD: "pronunciation-word",
+  SENTENCE_CLOZE:     "sentence-cloze",
 };
 
 export const EXERCISE_LABELS = {
-  [TYPES.WORD_MEANING]: "Word → Meaning",
-  [TYPES.MEANING_WORD]: "Meaning → Word",
-  [TYPES.WORD_PRONUNCIATION]:  "Word → Pronunciation",
-  [TYPES.PRONUNCIATION_WORD]:  "Pronunciation → Word",
-  mixed:                "Mixed",
+  [TYPES.WORD_MEANING]:       "Word → Meaning",
+  [TYPES.MEANING_WORD]:       "Meaning → Word",
+  [TYPES.WORD_PRONUNCIATION]: "Word → Pronunciation",
+  [TYPES.PRONUNCIATION_WORD]: "Pronunciation → Word",
+  [TYPES.SENTENCE_CLOZE]:     "Sentence → Word",
+  mixed:                      "Mixed",
 };
 
 export const PROMPT_LABELS = {
-  [TYPES.WORD_MEANING]: "What does this mean?",
-  [TYPES.MEANING_WORD]: "Which word matches?",
-  [TYPES.WORD_PRONUNCIATION]:  "What is the pronunciation?",
-  [TYPES.PRONUNCIATION_WORD]:  "Which word is this?",
+  [TYPES.WORD_MEANING]:       "What does this mean?",
+  [TYPES.MEANING_WORD]:       "Which word matches?",
+  [TYPES.WORD_PRONUNCIATION]: "What is the pronunciation?",
+  [TYPES.PRONUNCIATION_WORD]: "Which word is this?",
+  [TYPES.SENTENCE_CLOZE]:     "Fill in the blank",
 };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -39,12 +42,16 @@ const clean = (field) =>
 /** Returns the available exercise types for a given view config */
 export const getAvailableTypes = (view) => {
   const sw = view?.similarWords || {};
+  const sentenceField = sw.sentenceField || view?.examples?.sentenceField || "";
   const types = [];
   if (sw.wordField && sw.translationField) {
     types.push(TYPES.WORD_MEANING, TYPES.MEANING_WORD);
   }
   if (sw.wordField && sw.pronunciationField) {
     types.push(TYPES.WORD_PRONUNCIATION, TYPES.PRONUNCIATION_WORD);
+  }
+  if (sw.wordField && sentenceField) {
+    types.push(TYPES.SENTENCE_CLOZE);
   }
   return types;
 };
@@ -53,9 +60,11 @@ export const getAvailableTypes = (view) => {
 const buildQuestion = (note, pool, type, view) => {
   const sw = view?.similarWords || {};
 
-  const word    = clean(note.fields?.[sw.wordField]);
-  const pronunciation  = clean(note.fields?.[sw.pronunciationField]);
-  const meaning = clean(note.fields?.[sw.translationField]);
+  const word         = clean(note.fields?.[sw.wordField]);
+  const pronunciation = clean(note.fields?.[sw.pronunciationField]);
+  const meaning      = clean(note.fields?.[sw.translationField]);
+  const sentenceFieldName = sw.sentenceField || view?.examples?.sentenceField || "";
+  const sentence = sentenceFieldName ? clean(note.fields?.[sentenceFieldName]) : "";
 
   let prompt, answer, getDistractor;
 
@@ -81,6 +90,14 @@ const buildQuestion = (note, pool, type, view) => {
     case TYPES.PRONUNCIATION_WORD:
       if (!pronunciation || !word) return null;
       prompt = pronunciation;
+      answer = word;
+      getDistractor = (n) => clean(n.fields?.[sw.wordField]);
+      break;
+    case TYPES.SENTENCE_CLOZE:
+      if (!sentence || !word) return null;
+      // Replace the word with a gap marker; fall back if word not found in sentence
+      if (!sentence.includes(word)) return null;
+      prompt = sentence.replace(word, "[___]");
       answer = word;
       getDistractor = (n) => clean(n.fields?.[sw.wordField]);
       break;
@@ -150,10 +167,10 @@ const buildQuestion = (note, pool, type, view) => {
     answer,
     options,
     correctIndex: options.findIndex((o) => o.text === answer),
-    // Full note data — used by the confusion report to show all fields
     word,
     pronunciation,
     meaning,
+    sentence,
   };
 };
 
