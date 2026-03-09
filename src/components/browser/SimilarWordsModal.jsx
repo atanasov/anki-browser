@@ -168,9 +168,9 @@ const SimilarWordsModal = ({ isOpen, onClose, note, config }) => {
                         <div className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
                           {getText(n, config.wordField)}
                         </div>
-                        {config.pinyinField && (
+                        {config.pronunciationField && (
                           <div className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">
-                            {getText(n, config.pinyinField)}
+                            {getText(n, config.pronunciationField)}
                           </div>
                         )}
                         {config.translationField && (

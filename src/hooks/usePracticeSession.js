@@ -11,23 +11,23 @@ import { extractFieldValue } from "../utils/fieldHelpers";
 export const TYPES = {
   WORD_MEANING: "word-meaning",
   MEANING_WORD: "meaning-word",
-  WORD_PINYIN:  "word-pinyin",
-  PINYIN_WORD:  "pinyin-word",
+  WORD_PRONUNCIATION:  "word-pronunciation",
+  PRONUNCIATION_WORD:  "pronunciation-word",
 };
 
 export const EXERCISE_LABELS = {
   [TYPES.WORD_MEANING]: "Word → Meaning",
   [TYPES.MEANING_WORD]: "Meaning → Word",
-  [TYPES.WORD_PINYIN]:  "Word → Pinyin",
-  [TYPES.PINYIN_WORD]:  "Pinyin → Word",
+  [TYPES.WORD_PRONUNCIATION]:  "Word → Pronunciation",
+  [TYPES.PRONUNCIATION_WORD]:  "Pronunciation → Word",
   mixed:                "Mixed",
 };
 
 export const PROMPT_LABELS = {
   [TYPES.WORD_MEANING]: "What does this mean?",
   [TYPES.MEANING_WORD]: "Which word matches?",
-  [TYPES.WORD_PINYIN]:  "What is the pinyin?",
-  [TYPES.PINYIN_WORD]:  "Which word is this?",
+  [TYPES.WORD_PRONUNCIATION]:  "What is the pronunciation?",
+  [TYPES.PRONUNCIATION_WORD]:  "Which word is this?",
 };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -43,8 +43,8 @@ export const getAvailableTypes = (view) => {
   if (sw.wordField && sw.translationField) {
     types.push(TYPES.WORD_MEANING, TYPES.MEANING_WORD);
   }
-  if (sw.wordField && sw.pinyinField) {
-    types.push(TYPES.WORD_PINYIN, TYPES.PINYIN_WORD);
+  if (sw.wordField && sw.pronunciationField) {
+    types.push(TYPES.WORD_PRONUNCIATION, TYPES.PRONUNCIATION_WORD);
   }
   return types;
 };
@@ -54,7 +54,7 @@ const buildQuestion = (note, pool, type, view) => {
   const sw = view?.similarWords || {};
 
   const word    = clean(note.fields?.[sw.wordField]);
-  const pinyin  = clean(note.fields?.[sw.pinyinField]);
+  const pronunciation  = clean(note.fields?.[sw.pronunciationField]);
   const meaning = clean(note.fields?.[sw.translationField]);
 
   let prompt, answer, getDistractor;
@@ -72,15 +72,15 @@ const buildQuestion = (note, pool, type, view) => {
       answer = word;
       getDistractor = (n) => clean(n.fields?.[sw.wordField]);
       break;
-    case TYPES.WORD_PINYIN:
-      if (!word || !pinyin) return null;
+    case TYPES.WORD_PRONUNCIATION:
+      if (!word || !pronunciation) return null;
       prompt = word;
-      answer = pinyin;
-      getDistractor = (n) => clean(n.fields?.[sw.pinyinField]);
+      answer = pronunciation;
+      getDistractor = (n) => clean(n.fields?.[sw.pronunciationField]);
       break;
-    case TYPES.PINYIN_WORD:
-      if (!pinyin || !word) return null;
-      prompt = pinyin;
+    case TYPES.PRONUNCIATION_WORD:
+      if (!pronunciation || !word) return null;
+      prompt = pronunciation;
       answer = word;
       getDistractor = (n) => clean(n.fields?.[sw.wordField]);
       break;
@@ -104,26 +104,28 @@ const buildQuestion = (note, pool, type, view) => {
   // Score each candidate: does its word share any character with the current word?
   const candidates = shuffledPool
     .map((n) => {
-      const d       = getDistractor(n);
-      const nWord   = clean(n.fields?.[sw.wordField]);
-      const overlap = [...nWord].filter((c) => currentChars.has(c)).length;
-      return { d, overlap };
+      const text     = getDistractor(n);
+      const nWord    = clean(n.fields?.[sw.wordField]);
+      const nPronunciation  = clean(n.fields?.[sw.pronunciationField]);
+      const nMeaning = clean(n.fields?.[sw.translationField]);
+      const overlap  = [...nWord].filter((c) => currentChars.has(c)).length;
+      return { text, word: nWord, pronunciation: nPronunciation, meaning: nMeaning, overlap };
     })
-    .filter(({ d }) => d && d !== answer)
-    .filter(({ d }, i, arr) => arr.findIndex((x) => x.d === d) === i); // unique answers
+    .filter(({ text }) => text && text !== answer)
+    .filter(({ text }, i, arr) => arr.findIndex((x) => x.text === text) === i); // unique
 
-  const withChar    = candidates.filter(({ overlap }) => overlap > 0).map(({ d }) => d);
-  const noChar      = candidates.filter(({ overlap }) => overlap === 0).map(({ d }) => d);
+  const withChar    = candidates.filter(({ overlap }) => overlap > 0);
+  const noChar      = candidates.filter(({ overlap }) => overlap === 0);
 
-  const withCharNear = withChar.filter((d) => Math.abs(d.length - answerLen) <= 1);
-  const noCharNear   = noChar.filter((d) => Math.abs(d.length - answerLen) <= 1);
+  const withCharNear = withChar.filter(({ text }) => Math.abs(text.length - answerLen) <= 1);
+  const noCharNear   = noChar.filter(({ text }) => Math.abs(text.length - answerLen) <= 1);
 
   // Fill bucket: prefer withCharNear → withChar → noCharNear → noChar
   const picked = [];
   const add = (list) => {
-    for (const d of list) {
+    for (const item of list) {
       if (picked.length >= NUM_DISTRACTORS) break;
-      if (!picked.includes(d)) picked.push(d);
+      if (!picked.some((p) => p.text === item.text)) picked.push(item);
     }
   };
   add(withCharNear);
@@ -131,10 +133,14 @@ const buildQuestion = (note, pool, type, view) => {
   add(noCharNear);
   add(noChar);
 
-  while (picked.length < NUM_DISTRACTORS) picked.push("—");
+  while (picked.length < NUM_DISTRACTORS) {
+    picked.push({ text: "—", word: "", pronunciation: "", meaning: "" });
+  }
   const distractors = picked.slice(0, NUM_DISTRACTORS);
 
-  const options = shuffle([answer, ...distractors]);
+  // Each option carries full context so wrong picks can show pronunciation/meaning
+  const answerOption = { text: answer, word, pronunciation, meaning };
+  const options = shuffle([answerOption, ...distractors]);
 
   return {
     noteId: note.noteId,
@@ -143,7 +149,11 @@ const buildQuestion = (note, pool, type, view) => {
     promptLabel: PROMPT_LABELS[type],
     answer,
     options,
-    correctIndex: options.indexOf(answer),
+    correctIndex: options.findIndex((o) => o.text === answer),
+    // Full note data — used by the confusion report to show all fields
+    word,
+    pronunciation,
+    meaning,
   };
 };
 
@@ -186,14 +196,21 @@ export const usePracticeSession = () => {
       const q = questions[current];
       const correct = optionIndex === q.correctIndex;
 
+      const pickedOpt = q.options[optionIndex];
       setResults((prev) => [
         ...prev,
         {
-          noteId: q.noteId,
-          prompt: q.prompt,
-          answer: q.answer,
+          noteId:        q.noteId,
+          prompt:        q.prompt,
+          answer:        q.answer,
+          word:                q.word,
+          pronunciation:       q.pronunciation,
+          meaning:             q.meaning,
           correct,
-          picked: q.options[optionIndex], // what the user actually chose
+          picked:              pickedOpt.text,
+          pickedWord:          pickedOpt.word,
+          pickedPronunciation: pickedOpt.pronunciation,
+          pickedMeaning:       pickedOpt.meaning,
         },
       ]);
 
@@ -217,12 +234,26 @@ export const usePracticeSession = () => {
     results.forEach((r) => {
       if (!r.correct) {
         if (!wrongByNote[r.noteId]) {
-          wrongByNote[r.noteId] = { prompt: r.prompt, answer: r.answer, errors: 0, wrongPicks: [] };
+          wrongByNote[r.noteId] = {
+            noteId:  r.noteId,
+            prompt:  r.prompt,
+            answer:  r.answer,
+            word:          r.word,
+            pronunciation: r.pronunciation,
+            meaning:       r.meaning,
+            errors:        0,
+            wrongPicks: [],
+          };
         }
         wrongByNote[r.noteId].errors++;
-        // Collect unique wrong picks for this word
-        if (r.picked && !wrongByNote[r.noteId].wrongPicks.includes(r.picked)) {
-          wrongByNote[r.noteId].wrongPicks.push(r.picked);
+        // Collect unique wrong picks for this word (with full context)
+        if (r.picked && !wrongByNote[r.noteId].wrongPicks.some((p) => p.text === r.picked)) {
+          wrongByNote[r.noteId].wrongPicks.push({
+            text:          r.picked,
+            word:          r.pickedWord,
+            pronunciation: r.pickedPronunciation,
+            meaning:       r.pickedMeaning,
+          });
         }
       }
     });

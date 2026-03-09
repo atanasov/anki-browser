@@ -527,7 +527,7 @@ const NoteCard = ({ note }) => {
             deck: similarWordsConfig.deck || activeView.deck,
             noteType: similarWordsConfig.noteType || activeView.noteType,
             wordField: similarWordsConfig.wordField,
-            pinyinField: similarWordsConfig.pinyinField,
+            pronunciationField: similarWordsConfig.pronunciationField,
             translationField: similarWordsConfig.translationField,
           }}
         />

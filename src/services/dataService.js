@@ -82,7 +82,7 @@ export const DEFAULT_VIEW = {
     deck: "",
     noteType: "",
     wordField: "",
-    pinyinField: "",
+    pronunciationField: "",
     translationField: "",
   },
   // Advanced query (optional - for power users)

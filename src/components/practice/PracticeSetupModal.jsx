@@ -266,7 +266,7 @@ const PracticeSetupModal = ({ isOpen, onClose, onStart, view, selectedNoteIds })
 
         {availableTypes.length === 0 && (
           <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-amber-700 dark:text-amber-300 text-sm">
-            Configure the <strong>Word</strong>, <strong>Pinyin</strong>, and{" "}
+            Configure the <strong>Word</strong>, <strong>Pronunciation</strong>, and{" "}
             <strong>Translation</strong> fields in Similar Words settings to enable
             practice exercises.
           </div>
