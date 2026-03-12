@@ -32,6 +32,8 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
       pronunciationField: "",
       translationField: "",
       sentenceField: "",
+      sentenceTranslationField: "",
+      audioField: "",
     },
     examples: {
       enabled: false,
@@ -147,6 +149,9 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
           wordField: "",
           pronunciationField: "",
           translationField: "",
+          sentenceField: "",
+          sentenceTranslationField: "",
+          audioField: "",
         },
         examples: viewToEdit.examples || {
           enabled: false,
@@ -185,6 +190,9 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
           wordField: "",
           pronunciationField: "",
           translationField: "",
+          sentenceField: "",
+          sentenceTranslationField: "",
+          audioField: "",
         },
         examples: {
           enabled: false,
@@ -736,15 +744,21 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
 
               {/* Field selectors */}
               {[
-                { label: "Word Field *",       field: "wordField" },
-                { label: "Pronunciation Field",        field: "pronunciationField" },
-                { label: "Translation Field",   field: "translationField" },
+                { label: "Word Field *",                field: "wordField" },
+                { label: "Pronunciation Field",         field: "pronunciationField" },
+                { label: "Translation Field",           field: "translationField" },
+                { label: "Sentence Field",              field: "sentenceField" },
+                { label: "Sentence Translation Field",  field: "sentenceTranslationField" },
+                { label: "Audio Field",                 field: "audioField" },
               ].length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {[
-                    { label: "Word Field *",        field: "wordField" },
-                    { label: "Pronunciation Field",  field: "pronunciationField" },
-                    { label: "Translation Field",    field: "translationField" },
+                    { label: "Word Field *",                field: "wordField" },
+                    { label: "Pronunciation Field",         field: "pronunciationField" },
+                    { label: "Translation Field",           field: "translationField" },
+                    { label: "Sentence Field",              field: "sentenceField" },
+                    { label: "Sentence Translation Field",  field: "sentenceTranslationField" },
+                    { label: "Audio Field",                 field: "audioField" },
                   ].map(({ label, field }) => {
                     const fields = similarWordsFields.length > 0 ? similarWordsFields : availableFields;
                     return (

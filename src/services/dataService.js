@@ -86,6 +86,9 @@ export const DEFAULT_VIEW = {
     wordField: "",
     pronunciationField: "",
     translationField: "",
+    sentenceField: "",
+    sentenceTranslationField: "",
+    audioField: "",
   },
   // Advanced query (optional - for power users)
   rawQuery: "", // e.g., "deck:MyDeck note:MyNote is:due"

@@ -14,6 +14,7 @@ export const TYPES = {
   WORD_PRONUNCIATION: "word-pronunciation",
   PRONUNCIATION_WORD: "pronunciation-word",
   SENTENCE_CLOZE:     "sentence-cloze",
+  RECALL:             "recall",
 };
 
 export const EXERCISE_LABELS = {
@@ -22,6 +23,7 @@ export const EXERCISE_LABELS = {
   [TYPES.WORD_PRONUNCIATION]: "Word → Pronunciation",
   [TYPES.PRONUNCIATION_WORD]: "Pronunciation → Word",
   [TYPES.SENTENCE_CLOZE]:     "Sentence → Word",
+  [TYPES.RECALL]:             "Recall (self-assess)",
   mixed:                      "Mixed",
 };
 
@@ -31,6 +33,7 @@ export const PROMPT_LABELS = {
   [TYPES.WORD_PRONUNCIATION]: "What is the pronunciation?",
   [TYPES.PRONUNCIATION_WORD]: "Which word is this?",
   [TYPES.SENTENCE_CLOZE]:     "Fill in the blank",
+  [TYPES.RECALL]:             "Say aloud: pronunciation · meaning · example",
 };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -38,6 +41,17 @@ const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
 
 const clean = (field) =>
   extractFieldValue(field).replace(/<[^>]*>/g, "").trim();
+
+/** Split a multi-sentence field (separated by <br>) into an array of up to 3 shortest sentences */
+const parseSentences = (raw) => {
+  if (!raw) return [];
+  return raw
+    .split(/<br\s*\/?>/i)
+    .map((s) => s.replace(/<[^>]*>/g, "").trim())
+    .filter(Boolean)
+    .sort((a, b) => a.length - b.length)
+    .slice(0, 5);
+};
 
 /** Returns the available exercise types for a given view config */
 export const getAvailableTypes = (view) => {
@@ -53,6 +67,9 @@ export const getAvailableTypes = (view) => {
   if (sw.wordField && sentenceField) {
     types.push(TYPES.SENTENCE_CLOZE);
   }
+  if (sw.wordField && sw.pronunciationField && sw.translationField) {
+    types.push(TYPES.RECALL);
+  }
   return types;
 };
 
@@ -65,6 +82,25 @@ const buildQuestion = (note, pool, type, view) => {
   const meaning      = clean(note.fields?.[sw.translationField]);
   const sentenceFieldName = sw.sentenceField || view?.examples?.sentenceField || "";
   const sentence = sentenceFieldName ? clean(note.fields?.[sentenceFieldName]) : "";
+  // Raw audio field value — keeps [sound:filename.mp3] format for playback
+  const audioRaw = sw.audioField ? extractFieldValue(note.fields?.[sw.audioField]) : "";
+  const sentenceTranslation = sw.sentenceTranslationField ? clean(note.fields?.[sw.sentenceTranslationField]) : "";
+  const sentences = parseSentences(extractFieldValue(note.fields?.[sentenceFieldName] ?? ""));
+
+  // ── Recall: no options needed, just the word as prompt ──────────────
+  if (type === TYPES.RECALL) {
+    if (!word || (!pronunciation && !meaning)) return null;
+    return {
+      noteId: note.noteId,
+      type: TYPES.RECALL,
+      prompt: word,
+      promptLabel: PROMPT_LABELS[TYPES.RECALL],
+      answer: pronunciation,
+      options: [],
+      correctIndex: -1,
+      word, pronunciation, meaning, sentence, audioRaw, sentences, sentenceTranslation,
+    };
+  }
 
   let prompt, answer, getDistractor;
 
@@ -95,7 +131,6 @@ const buildQuestion = (note, pool, type, view) => {
       break;
     case TYPES.SENTENCE_CLOZE:
       if (!sentence || !word) return null;
-      // Replace the word with a gap marker; fall back if word not found in sentence
       if (!sentence.includes(word)) return null;
       prompt = sentence.replace(word, "[___]");
       answer = word;
@@ -106,19 +141,12 @@ const buildQuestion = (note, pool, type, view) => {
   }
 
   // ── Distractor selection ─────────────────────────────────────────────
-  // Priority: (1) shares a character with current word + similar answer length
-  //           (2) shares a character, any length
-  //           (3) similar answer length, no character overlap
-  //           (4) anything remaining
-  // This ensures wrong options look genuinely similar, not random.
-
-  const NUM_DISTRACTORS = 5; // total options = 6
-  const currentChars = new Set([...word]); // word already cleaned above
+  const NUM_DISTRACTORS = 5;
+  const currentChars = new Set([...word]);
   const answerLen    = answer.length;
 
   const shuffledPool = shuffle(pool.filter((n) => n.noteId !== note.noteId));
 
-  // Score each candidate: does its word share any character with the current word?
   const candidates = shuffledPool
     .map((n) => {
       const text     = getDistractor(n);
@@ -126,18 +154,18 @@ const buildQuestion = (note, pool, type, view) => {
       const nPronunciation  = clean(n.fields?.[sw.pronunciationField]);
       const nMeaning = clean(n.fields?.[sw.translationField]);
       const overlap  = [...nWord].filter((c) => currentChars.has(c)).length;
-      return { text, word: nWord, pronunciation: nPronunciation, meaning: nMeaning, overlap };
+      const nSentenceRaw = sentenceFieldName ? extractFieldValue(n.fields?.[sentenceFieldName] ?? "") : "";
+      const nSentenceTranslation = sw.sentenceTranslationField ? clean(n.fields?.[sw.sentenceTranslationField]) : "";
+      return { text, word: nWord, pronunciation: nPronunciation, meaning: nMeaning, overlap, sentences: parseSentences(nSentenceRaw), sentenceTranslation: nSentenceTranslation };
     })
     .filter(({ text }) => text && text !== answer)
-    .filter(({ text }, i, arr) => arr.findIndex((x) => x.text === text) === i); // unique
+    .filter(({ text }, i, arr) => arr.findIndex((x) => x.text === text) === i);
 
   const withChar    = candidates.filter(({ overlap }) => overlap > 0);
   const noChar      = candidates.filter(({ overlap }) => overlap === 0);
-
   const withCharNear = withChar.filter(({ text }) => Math.abs(text.length - answerLen) <= 1);
   const noCharNear   = noChar.filter(({ text }) => Math.abs(text.length - answerLen) <= 1);
 
-  // Fill bucket: prefer withCharNear → withChar → noCharNear → noChar
   const picked = [];
   const add = (list) => {
     for (const item of list) {
@@ -151,12 +179,11 @@ const buildQuestion = (note, pool, type, view) => {
   add(noChar);
 
   while (picked.length < NUM_DISTRACTORS) {
-    picked.push({ text: "—", word: "", pronunciation: "", meaning: "" });
+    picked.push({ text: "—", word: "", pronunciation: "", meaning: "", sentences: [], sentenceTranslation: "" });
   }
   const distractors = picked.slice(0, NUM_DISTRACTORS);
 
-  // Each option carries full context so wrong picks can show pronunciation/meaning
-  const answerOption = { text: answer, word, pronunciation, meaning };
+  const answerOption = { text: answer, word, pronunciation, meaning, sentences, sentenceTranslation };
   const options = shuffle([answerOption, ...distractors]);
 
   return {
@@ -171,6 +198,9 @@ const buildQuestion = (note, pool, type, view) => {
     pronunciation,
     meaning,
     sentence,
+    audioRaw,
+    sentences,
+    sentenceTranslation,
   };
 };
 
@@ -178,11 +208,11 @@ const buildQuestion = (note, pool, type, view) => {
 export const usePracticeSession = () => {
   const [questions, setQuestions] = useState([]);
   const [current,   setCurrent]   = useState(0);
-  const [selected,  setSelected]  = useState(null); // chosen option index
+  const [selected,  setSelected]  = useState(null);
+  const [revealed,  setRevealed]  = useState(false); // recall mode: card flipped?
   const [results,   setResults]   = useState([]);
-  const [phase,     setPhase]     = useState("idle"); // idle|playing|finished
+  const [phase,     setPhase]     = useState("idle");
 
-  /** Build questions from a flat note pool and start the session */
   const start = useCallback((notes, exerciseType, view) => {
     const available = getAvailableTypes(view);
     if (available.length === 0) return;
@@ -200,11 +230,57 @@ export const usePracticeSession = () => {
     setQuestions(qs);
     setCurrent(0);
     setSelected(null);
+    setRevealed(false);
     setResults([]);
     setPhase("playing");
   }, []);
 
-  /** Record the user's answer and auto-advance after 1.2 s */
+  /** Flip the recall card to show the answer */
+  const reveal = useCallback(() => {
+    setRevealed(true);
+  }, []);
+
+  /** Self-rate a recall card: true = know it, false = not yet */
+  const selfRate = useCallback((correct) => {
+    const q = questions[current];
+    setResults((prev) => [
+      ...prev,
+      {
+        noteId:        q.noteId,
+        prompt:        q.prompt,
+        answer:        q.answer,
+        word:          q.word,
+        pronunciation: q.pronunciation,
+        meaning:       q.meaning,
+        sentences:              q.sentences ?? [],
+        sentenceTranslation:    q.sentenceTranslation ?? "",
+        correct,
+        picked:        correct ? q.pronunciation : "(not yet)",
+        pickedWord: "", pickedPronunciation: "", pickedMeaning: "",
+        pickedSentences: [], pickedSentenceTranslation: "",
+      },
+    ]);
+
+    if (!correct) {
+      setQuestions((prev) => {
+        const insertAt = Math.min(current + 4, prev.length);
+        const arr = [...prev];
+        arr.splice(insertAt, 0, prev[current]);
+        return arr;
+      });
+    }
+
+    // Advance immediately — the rating IS the action for recall
+    const isLast = current + 1 >= questions.length;
+    if (isLast && correct) {
+      setPhase("finished");
+    } else {
+      setCurrent((c) => c + 1);
+      setRevealed(false);
+    }
+  }, [questions, current]);
+
+  /** Record a multiple-choice answer. Wrong answers are re-queued ~4 cards later. */
   const answer = useCallback(
     (optionIndex) => {
       if (selected !== null) return;
@@ -212,38 +288,52 @@ export const usePracticeSession = () => {
 
       const q = questions[current];
       const correct = optionIndex === q.correctIndex;
-
       const pickedOpt = q.options[optionIndex];
+
       setResults((prev) => [
         ...prev,
         {
           noteId:        q.noteId,
           prompt:        q.prompt,
           answer:        q.answer,
-          word:                q.word,
-          pronunciation:       q.pronunciation,
-          meaning:             q.meaning,
+          word:                     q.word,
+          pronunciation:            q.pronunciation,
+          meaning:                  q.meaning,
+          sentences:                q.sentences ?? [],
+          sentenceTranslation:      q.sentenceTranslation ?? "",
           correct,
-          picked:              pickedOpt.text,
-          pickedWord:          pickedOpt.word,
-          pickedPronunciation: pickedOpt.pronunciation,
-          pickedMeaning:       pickedOpt.meaning,
+          picked:                   pickedOpt.text,
+          pickedWord:               pickedOpt.word,
+          pickedPronunciation:      pickedOpt.pronunciation,
+          pickedMeaning:            pickedOpt.meaning,
+          pickedSentences:          pickedOpt.sentences ?? [],
+          pickedSentenceTranslation: pickedOpt.sentenceTranslation ?? "",
         },
       ]);
 
-      setTimeout(() => {
-        if (current + 1 >= questions.length) {
-          setPhase("finished");
-        } else {
-          setCurrent((c) => c + 1);
-          setSelected(null);
-        }
-      }, 1200);
+      if (!correct) {
+        setQuestions((prev) => {
+          const insertAt = Math.min(current + 4, prev.length);
+          const next = [...prev];
+          next.splice(insertAt, 0, prev[current]);
+          return next;
+        });
+      }
     },
     [selected, questions, current]
   );
 
-  /** Computed confusion report — available when phase === "finished" */
+  /** Advance past a multiple-choice question after reviewing the answer. */
+  const advance = useCallback(() => {
+    const next = current + 1;
+    if (next >= questions.length) {
+      setPhase("finished");
+    } else {
+      setCurrent(next);
+      setSelected(null);
+    }
+  }, [current, questions.length]);
+
   const confusionReport = useMemo(() => {
     if (phase !== "finished") return null;
 
@@ -252,39 +342,41 @@ export const usePracticeSession = () => {
       if (!r.correct) {
         if (!wrongByNote[r.noteId]) {
           wrongByNote[r.noteId] = {
-            noteId:  r.noteId,
-            prompt:  r.prompt,
-            answer:  r.answer,
-            word:          r.word,
-            pronunciation: r.pronunciation,
-            meaning:       r.meaning,
-            errors:        0,
+            noteId:              r.noteId,
+            prompt:              r.prompt,
+            answer:              r.answer,
+            word:                r.word,
+            pronunciation:       r.pronunciation,
+            meaning:             r.meaning,
+            sentences:           r.sentences ?? [],
+            sentenceTranslation: r.sentenceTranslation ?? "",
+            errors:              0,
             wrongPicks: [],
           };
         }
         wrongByNote[r.noteId].errors++;
-        // Collect unique wrong picks for this word (with full context)
         if (r.picked && !wrongByNote[r.noteId].wrongPicks.some((p) => p.text === r.picked)) {
           wrongByNote[r.noteId].wrongPicks.push({
-            text:          r.picked,
-            word:          r.pickedWord,
-            pronunciation: r.pickedPronunciation,
-            meaning:       r.pickedMeaning,
+            text:                r.picked,
+            word:                r.pickedWord,
+            pronunciation:       r.pickedPronunciation,
+            meaning:             r.pickedMeaning,
+            sentences:           r.pickedSentences ?? [],
+            sentenceTranslation: r.pickedSentenceTranslation ?? "",
           });
         }
       }
     });
 
-    const confusedWords = Object.values(wrongByNote).sort(
-      (a, b) => b.errors - a.errors
-    );
+    const confusedWords = Object.values(wrongByNote).sort((a, b) => b.errors - a.errors);
 
-    // Count how many confused words each Hanzi character appears in
+    // Count how many times each character appears across all confused *words* (not prompts).
+    // Using `errors` as weight so frequently missed words contribute more.
     const charCount = {};
-    confusedWords.forEach(({ prompt }) => {
-      [...new Set([...prompt])].forEach((ch) => {
+    confusedWords.forEach(({ word, errors }) => {
+      [...new Set([...word])].forEach((ch) => {
         if (/\p{Script=Han}/u.test(ch)) {
-          charCount[ch] = (charCount[ch] || 0) + 1;
+          charCount[ch] = (charCount[ch] || 0) + errors;
         }
       });
     });
@@ -308,9 +400,13 @@ export const usePracticeSession = () => {
     phase,
     current,
     selected,
+    revealed,
     confusionReport,
     start,
     answer,
+    advance,
+    reveal,
+    selfRate,
     currentQuestion: questions[current] ?? null,
     progress: { current: current + 1, total: questions.length },
     score,
