@@ -42,7 +42,7 @@ const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
 const clean = (field) =>
   extractFieldValue(field).replace(/<[^>]*>/g, "").trim();
 
-/** Split a multi-sentence field (separated by <br>) into an array of up to 3 shortest sentences */
+/** Split a multi-sentence field (separated by <br>) into an array of up to 5 shortest sentences */
 const parseSentences = (raw) => {
   if (!raw) return [];
   return raw
@@ -280,15 +280,16 @@ export const usePracticeSession = () => {
     }
   }, [questions, current]);
 
-  /** Record a multiple-choice answer. Wrong answers are re-queued ~4 cards later. */
+  /** Record a multiple-choice answer. Pass -1 to "give up" (blank unknown). Wrong answers are re-queued ~4 cards later. */
   const answer = useCallback(
     (optionIndex) => {
       if (selected !== null) return;
       setSelected(optionIndex);
 
       const q = questions[current];
-      const correct = optionIndex === q.correctIndex;
-      const pickedOpt = q.options[optionIndex];
+      const isGaveUp = optionIndex === -1;
+      const correct = !isGaveUp && optionIndex === q.correctIndex;
+      const pickedOpt = !isGaveUp ? q.options[optionIndex] : null;
 
       setResults((prev) => [
         ...prev,
@@ -302,12 +303,13 @@ export const usePracticeSession = () => {
           sentences:                q.sentences ?? [],
           sentenceTranslation:      q.sentenceTranslation ?? "",
           correct,
-          picked:                   pickedOpt.text,
-          pickedWord:               pickedOpt.word,
-          pickedPronunciation:      pickedOpt.pronunciation,
-          pickedMeaning:            pickedOpt.meaning,
-          pickedSentences:          pickedOpt.sentences ?? [],
-          pickedSentenceTranslation: pickedOpt.sentenceTranslation ?? "",
+          gaveUp:                   isGaveUp,
+          picked:                   pickedOpt?.text ?? "",
+          pickedWord:               pickedOpt?.word ?? "",
+          pickedPronunciation:      pickedOpt?.pronunciation ?? "",
+          pickedMeaning:            pickedOpt?.meaning ?? "",
+          pickedSentences:          pickedOpt?.sentences ?? [],
+          pickedSentenceTranslation: pickedOpt?.sentenceTranslation ?? "",
         },
       ]);
 
@@ -355,7 +357,7 @@ export const usePracticeSession = () => {
           };
         }
         wrongByNote[r.noteId].errors++;
-        if (r.picked && !wrongByNote[r.noteId].wrongPicks.some((p) => p.text === r.picked)) {
+        if (r.picked && !r.gaveUp && !wrongByNote[r.noteId].wrongPicks.some((p) => p.text === r.picked)) {
           wrongByNote[r.noteId].wrongPicks.push({
             text:                r.picked,
             word:                r.pickedWord,
