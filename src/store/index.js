@@ -14,6 +14,7 @@ const useStore = create((set) => ({
 
   // Non-persisted session state
   editMode: false,
+  practiceMode: false,
   selectedNoteIds: [],
   searchQuery: "", // temporary text search, cleared on view switch
   currentPageNoteIds: [], // note IDs currently visible on the card browser page
@@ -23,6 +24,7 @@ const useStore = create((set) => ({
     set((state) => ({
       ...dataService.getData(),
       editMode: state.editMode,
+      practiceMode: state.practiceMode,
       selectedNoteIds: state.selectedNoteIds,
       searchQuery: state.searchQuery,
     })),
@@ -72,6 +74,7 @@ const useStore = create((set) => ({
         views: dataService.getViews(),
         settings: dataService.getSettings(),
         editMode: false,
+        practiceMode: false,
         selectedNoteIds: [],
       });
     return success;
@@ -84,6 +87,7 @@ const useStore = create((set) => ({
         settings: dataService.getSettings(),
         views: dataService.getViews(),
         editMode: false,
+        practiceMode: false,
         selectedNoteIds: [],
         searchQuery: "",
       });
@@ -93,10 +97,13 @@ const useStore = create((set) => ({
   setSearchQuery: (q) => set({ searchQuery: q }),
   setCurrentPageNoteIds: (ids) => set({ currentPageNoteIds: ids }),
 
-  // Edit mode
+  // Edit / practice mode
   toggleEditMode: () =>
-    set((state) => ({ editMode: !state.editMode, selectedNoteIds: [] })),
-  setEditMode: (mode) => set({ editMode: mode, selectedNoteIds: [] }),
+    set((state) => ({ editMode: !state.editMode, practiceMode: false, selectedNoteIds: [] })),
+  setEditMode: (mode) => set({ editMode: mode, practiceMode: false, selectedNoteIds: [] }),
+  togglePracticeMode: () =>
+    set((state) => ({ practiceMode: !state.practiceMode, editMode: false, selectedNoteIds: [] })),
+  setPracticeMode: (mode) => set({ practiceMode: mode, editMode: false, selectedNoteIds: [] }),
   toggleNoteSelection: (noteId) =>
     set((state) => ({
       selectedNoteIds: state.selectedNoteIds.includes(noteId)
@@ -110,12 +117,12 @@ const useStore = create((set) => ({
   exportData: () => dataService.exportData(),
   importData: (jsonString, overwrite) => {
     const success = dataService.importData(jsonString, overwrite);
-    if (success) set({ ...dataService.getData(), editMode: false, selectedNoteIds: [] });
+    if (success) set({ ...dataService.getData(), editMode: false, practiceMode: false, selectedNoteIds: [] });
     return success;
   },
   resetAll: () => {
     dataService.resetAll();
-    set({ ...dataService.getData(), editMode: false, selectedNoteIds: [] });
+    set({ ...dataService.getData(), editMode: false, practiceMode: false, selectedNoteIds: [] });
   },
 }));
 

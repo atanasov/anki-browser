@@ -11,8 +11,6 @@ import ViewSelector from "./views/ViewSelector";
 import ViewEditorModal from "./views/ViewEditorModal";
 import DisplayControl from "./common/DisplayControl";
 import SettingsMenu from "./settings/SettingsMenu";
-import PracticeSetupModal from "./practice/PracticeSetupModal";
-import PracticeSession from "./practice/PracticeSession";
 import useStore from "../store";
 
 const Header = () => {
@@ -22,17 +20,16 @@ const Header = () => {
 
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewToEdit, setViewToEdit] = useState(null);
-  const [isPracticeSetupOpen, setIsPracticeSetupOpen] = useState(false);
-  const [practiceSessionOptions, setPracticeSessionOptions] = useState(null);
 
   const activeViewId = useStore((state) => state.settings.activeViewId);
   const getView = useStore((state) => state.getView);
   const setActiveView = useStore((state) => state.setActiveView);
   const editMode = useStore((state) => state.editMode);
   const toggleEditMode = useStore((state) => state.toggleEditMode);
+  const practiceMode = useStore((state) => state.practiceMode);
+  const togglePracticeMode = useStore((state) => state.togglePracticeMode);
   const searchQuery = useStore((state) => state.searchQuery);
   const setSearchQuery = useStore((state) => state.setSearchQuery);
-  const selectedNoteIds = useStore((state) => state.selectedNoteIds);
 
   const activeView = activeViewId ? getView(activeViewId) : null;
   const searchRef = useRef(null);
@@ -65,7 +62,7 @@ const Header = () => {
                   compact={true}
                 />
 
-                {activeView && !editMode && (
+                {activeView && !editMode && !practiceMode && (
                   <div className="relative flex-1 min-w-0 max-w-xs">
                     <input
                       ref={searchRef}
@@ -107,11 +104,15 @@ const Header = () => {
                       {editMode ? "✎ Editing" : "✎ Edit"}
                     </button>
                     <button
-                      onClick={() => setIsPracticeSetupOpen(true)}
-                      className="px-3 py-1.5 text-xs font-medium rounded-lg border border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
-                      title="Practice cards"
+                      onClick={togglePracticeMode}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                        practiceMode
+                          ? "bg-purple-50 dark:bg-purple-900/30 border-purple-300 dark:border-purple-600 text-purple-700 dark:text-purple-300"
+                          : "border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                      }`}
+                      title={practiceMode ? "Exit practice selection" : "Select cards to practice"}
                     >
-                      ▶ Practice
+                      {practiceMode ? "▶ Selecting…" : "▶ Practice"}
                     </button>
                   </div>
                 )}
@@ -156,27 +157,6 @@ const Header = () => {
         />
       )}
 
-      {/* Practice setup */}
-      {isHomePage && activeView && (
-        <PracticeSetupModal
-          isOpen={isPracticeSetupOpen}
-          onClose={() => setIsPracticeSetupOpen(false)}
-          onStart={(opts) => {
-            setIsPracticeSetupOpen(false);
-            setPracticeSessionOptions(opts);
-          }}
-          view={activeView}
-          selectedNoteIds={selectedNoteIds}
-        />
-      )}
-
-      {/* Practice session (full-screen overlay) */}
-      {practiceSessionOptions && (
-        <PracticeSession
-          sessionOptions={practiceSessionOptions}
-          onClose={() => setPracticeSessionOptions(null)}
-        />
-      )}
     </>
   );
 };

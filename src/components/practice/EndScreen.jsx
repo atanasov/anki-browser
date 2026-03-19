@@ -1,5 +1,4 @@
 import { useState } from "react";
-import WordProfileCard from "./WordProfileCard";
 
 const EndScreen = ({ report, onRestart, onDrillPairs, onClose }) => {
   const [weakOnly, setWeakOnly] = useState(false);
@@ -57,26 +56,6 @@ const EndScreen = ({ report, onRestart, onDrillPairs, onClose }) => {
                     ))}
                   </div>
                 )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Confused characters */}
-      {report.confusedChars.length > 0 && (
-        <div className="w-full">
-          <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-1">
-            Weak characters
-          </h3>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">
-            Characters that appear in words you missed — number shows total mistakes
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {report.confusedChars.map(({ char, count }) => (
-              <div key={char} className="flex items-center gap-1.5 px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">{char}</span>
-                <span className="text-xs text-red-500 dark:text-red-400">✗{count}</span>
               </div>
             ))}
           </div>

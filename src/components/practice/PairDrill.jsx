@@ -1,29 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import useStore from "../../store";
 import { adaptiveFont, shuffle, PRACTICE_SIZE_TO_MAX_INDEX } from "./practiceUtils";
-import WordProfileCard from "./WordProfileCard";
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Convert confusionReport into { target, foil } pairs (deduped) */
-export const buildDrillPairs = (report) => {
-  if (!report) return [];
-  const seen = new Set();
-  const pairs = [];
-  for (const cw of report.confusedWords) {
-    for (const pick of cw.wrongPicks) {
-      if (!pick.word) continue;
-      const key = `${cw.word}|${pick.word}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      pairs.push({
-        target: { word: cw.word, pronunciation: cw.pronunciation, meaning: cw.meaning, sentences: cw.sentences ?? [], sentenceTranslation: cw.sentenceTranslation ?? "" },
-        foil:   { word: pick.word, pronunciation: pick.pronunciation, meaning: pick.meaning, sentences: pick.sentences ?? [], sentenceTranslation: pick.sentenceTranslation ?? "" },
-      });
-    }
-  }
-  return pairs;
-};
+import WordCard from "./WordCard";
 
 const buildPairQuestions = (pairs) => {
   const qs = [];
@@ -156,8 +134,8 @@ const PairDrill = ({ pairs, onFinish, onClose }) => {
             </p>
             {pairs.map((pair, i) => (
               <div key={i} className="flex gap-3">
-                <WordProfileCard label="Target word" variant="correct" fontMaxIndex={practiceMaxIndex} {...pair.target} />
-                <WordProfileCard label="Confused with" variant="neutral" fontMaxIndex={practiceMaxIndex} {...pair.foil} />
+                <WordCard label="Target word" variant="correct" fontMaxIndex={practiceMaxIndex} {...pair.target} />
+                <WordCard label="Confused with" variant="neutral" fontMaxIndex={practiceMaxIndex} {...pair.foil} />
               </div>
             ))}
             <button
@@ -207,8 +185,8 @@ const PairDrill = ({ pairs, onFinish, onClose }) => {
             {isAnswered && (
               <div className="flex flex-col gap-3 w-full">
                 <div className="flex gap-3">
-                  <WordProfileCard label="✓ Correct" variant="correct" fontMaxIndex={practiceMaxIndex} {...q.pair.target} />
-                  <WordProfileCard
+                  <WordCard label="✓ Correct" variant="correct" fontMaxIndex={practiceMaxIndex} {...q.pair.target} />
+                  <WordCard
                     label={isWrong ? "✗ You picked" : "Also review"}
                     variant={isWrong ? "wrong" : "neutral"}
                     fontMaxIndex={practiceMaxIndex}

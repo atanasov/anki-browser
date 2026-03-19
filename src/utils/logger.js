@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * Simple logging utility
  * Provides controlled logging that can be easily disabled in production

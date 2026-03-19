@@ -11,7 +11,6 @@ import mediaCacheService from "../../services/mediaCache";
 import uiScaleService, { UI_SCALE_OPTIONS } from "../../services/uiScaleService";
 import useStore from "../../store";
 import { toast } from "../../store/toastStore";
-import { getFontSizeOptions } from "../../utils/fontSizeHelpers";
 import logger from "../../utils/logger";
 
 // Practice font size maps to adaptiveFont maxIndex in PracticeSession

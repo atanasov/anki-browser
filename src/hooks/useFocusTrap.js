@@ -37,7 +37,6 @@ export function useFocusTrap(isActive) {
     if (focusableElements.length === 0) return;
 
     const firstElement = focusableElements[0];
-    const lastElement = focusableElements[focusableElements.length - 1];
 
     // Focus first element after a small delay to ensure DOM is ready
     setTimeout(() => {
@@ -80,7 +79,7 @@ export function useFocusTrap(isActive) {
       if (previousFocusRef.current && previousFocusRef.current.focus) {
         try {
           previousFocusRef.current.focus();
-        } catch (error) {
+        } catch {
           // Element might not be focusable anymore, ignore error
         }
       }

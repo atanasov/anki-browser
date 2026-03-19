@@ -56,12 +56,14 @@ const SimilarWordsModal = ({ isOpen, onClose, note, config }) => {
     } finally {
       setLoading(false);
     }
-  }, [word, config, studiedOnly]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [word, config, studiedOnly]); // characters is derived from word — word dep is sufficient
 
   useEffect(() => {
     if (!isOpen || !word) return;
     fetchResults();
-  }, [isOpen, fetchResults]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, fetchResults]); // word is captured transitively via fetchResults
 
   const getText = (n, fieldName) => {
     if (!fieldName) return "";

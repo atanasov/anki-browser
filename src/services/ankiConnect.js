@@ -471,6 +471,7 @@ class AnkiConnectService {
     } catch (error) {
       // Don't throw - return empty array on error
       // This prevents breaking the UI if tag fetching fails
+      // eslint-disable-next-line no-console
       console.error("Failed to get tags for notes:", error);
       return [];
     }

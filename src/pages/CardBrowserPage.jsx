@@ -10,17 +10,24 @@ import Pagination from "../components/browser/Pagination";
 import CardGrid from "../components/browser/CardGrid";
 import ViewEditorModal from "../components/views/ViewEditorModal";
 import EditToolbar from "../components/browser/EditToolbar";
+import PracticeToolbar from "../components/browser/PracticeToolbar";
+import PracticeSetupModal from "../components/practice/PracticeSetupModal";
+import PracticeSession from "../components/practice/PracticeSession";
 import logger from "../utils/logger";
 
 const CardBrowser = () => {
   const updateSettings = useStore((state) => state.updateSettings);
   const getSetting = useStore((state) => state.getSetting);
   const editMode = useStore((state) => state.editMode);
+  const practiceMode = useStore((state) => state.practiceMode);
   const searchQuery = useStore((state) => state.searchQuery);
   const setSearchQuery = useStore((state) => state.setSearchQuery);
   const setCurrentPageNoteIds = useStore((state) => state.setCurrentPageNoteIds);
 
   const [isCreateViewModalOpen, setIsCreateViewModalOpen] = useState(false);
+  const [isPracticeSetupOpen, setIsPracticeSetupOpen] = useState(false);
+  const [practiceNoteIds, setPracticeNoteIds] = useState([]);
+  const [practiceSessionOptions, setPracticeSessionOptions] = useState(null);
   const [notes, setNotes] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -104,7 +111,8 @@ const CardBrowser = () => {
         setIsLoading(false);
       }
     },
-    [buildQuery]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [buildQuery] // setCurrentPageNoteIds is a stable Zustand setter
   );
 
   // Detect view switches or search changes — reset to page 1
@@ -173,7 +181,17 @@ const CardBrowser = () => {
         />
       )}
 
-      {!editMode && pagination.totalCount > 0 && (
+      {practiceMode && (
+        <PracticeToolbar
+          notes={notes}
+          onStartPractice={(ids) => {
+            setPracticeNoteIds(ids);
+            setIsPracticeSetupOpen(true);
+          }}
+        />
+      )}
+
+      {!editMode && !practiceMode && pagination.totalCount > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-10">
           <Pagination
             pagination={pagination}
@@ -182,6 +200,26 @@ const CardBrowser = () => {
             isLoading={isLoading}
           />
         </div>
+      )}
+
+      {activeView && (
+        <PracticeSetupModal
+          isOpen={isPracticeSetupOpen}
+          onClose={() => setIsPracticeSetupOpen(false)}
+          onStart={(opts) => {
+            setIsPracticeSetupOpen(false);
+            setPracticeSessionOptions(opts);
+          }}
+          view={activeView}
+          noteIds={practiceNoteIds}
+        />
+      )}
+
+      {practiceSessionOptions && (
+        <PracticeSession
+          sessionOptions={practiceSessionOptions}
+          onClose={() => setPracticeSessionOptions(null)}
+        />
       )}
     </div>
   );

@@ -1,7 +1,7 @@
 /**
  * PracticeSetupModal
- * Step 1: choose card source + include similar words
- * Step 2: choose exercise type
+ * Choose exercise type + similar words options, then start practice.
+ * Card selection is handled upstream (PracticeToolbar).
  * → emits onStart({ notes, exerciseType, view })
  */
 
@@ -13,7 +13,6 @@ import {
   getAvailableTypes,
   EXERCISE_LABELS,
 } from "../../hooks/usePracticeSession";
-import useStore from "../../store";
 import logger from "../../utils/logger";
 
 const Toggle = ({ value, onChange, label }) => (
@@ -35,10 +34,7 @@ const Toggle = ({ value, onChange, label }) => (
   </button>
 );
 
-const PracticeSetupModal = ({ isOpen, onClose, onStart, view, selectedNoteIds }) => {
-  const currentPageNoteIds = useStore((state) => state.currentPageNoteIds);
-
-  const [source,         setSource]        = useState("page");
+const PracticeSetupModal = ({ isOpen, onClose, onStart, view, noteIds }) => {
   const [includeSimilar, setIncludeSimilar] = useState(true);
   const [studiedOnly,    setStudiedOnly]    = useState(true);
   const [exerciseType,   setExerciseType]   = useState("mixed");
@@ -46,22 +42,16 @@ const PracticeSetupModal = ({ isOpen, onClose, onStart, view, selectedNoteIds })
   const [loadingStatus,  setLoadingStatus]  = useState("");
   const [error,          setError]          = useState(null);
 
-  const hasSelection          = selectedNoteIds.length > 0;
-  const hasPage               = currentPageNoteIds.length > 0;
   const hasSimilarWordsConfig = view?.similarWords?.enabled && view?.similarWords?.wordField;
   const availableTypes        = getAvailableTypes(view);
 
-  // Fall back to page if selection is cleared
-  useEffect(() => {
-    if (source === "selected" && !hasSelection) setSource("page");
-  }, [hasSelection, isOpen]);
-
-  // Default exercise type to first available on open
+  // Reset on open
   useEffect(() => {
     if (!isOpen) return;
-    if (availableTypes.length > 0) setExerciseType("mixed");
+    setExerciseType("mixed");
     setError(null);
     setLoadingStatus("");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   const handleStart = async () => {
@@ -71,10 +61,10 @@ const PracticeSetupModal = ({ isOpen, onClose, onStart, view, selectedNoteIds })
     try {
       // ── Step 1: fetch base notes ──────────────────────────────────────
       setLoadingStatus("Loading cards…");
-      const baseIds = source === "selected" ? selectedNoteIds : currentPageNoteIds;
+      const baseIds = noteIds;
 
       if (!baseIds?.length) {
-        setError("No cards found. Try changing the source or check your query.");
+        setError("No cards found. Check your query.");
         setLoading(false);
         return;
       }
@@ -139,54 +129,11 @@ const PracticeSetupModal = ({ isOpen, onClose, onStart, view, selectedNoteIds })
           </div>
         )}
 
-        {/* ── Source ─────────────────────────────────────────────────── */}
-        <div>
-          <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Cards to practice
+        {noteIds?.length > 0 && (
+          <p className="text-xs text-gray-400 dark:text-gray-500">
+            {noteIds.length} card{noteIds.length !== 1 ? "s" : ""} selected
           </p>
-          <div className="flex flex-col gap-2">
-            <label className={`flex items-center gap-3 ${hasPage ? "cursor-pointer" : "opacity-40 cursor-not-allowed"}`}>
-              <input
-                type="radio"
-                name="source"
-                value="page"
-                checked={source === "page"}
-                onChange={() => setSource("page")}
-                disabled={!hasPage}
-                className="accent-blue-600"
-              />
-              <span className="text-sm text-gray-800 dark:text-gray-200">
-                Current page
-                {hasPage && (
-                  <span className="ml-1 text-xs text-gray-400">
-                    ({currentPageNoteIds.length} cards)
-                  </span>
-                )}
-              </span>
-            </label>
-            <label
-              className={`flex items-center gap-3 ${hasSelection ? "cursor-pointer" : "opacity-40 cursor-not-allowed"}`}
-            >
-              <input
-                type="radio"
-                name="source"
-                value="selected"
-                checked={source === "selected"}
-                onChange={() => setSource("selected")}
-                disabled={!hasSelection}
-                className="accent-blue-600"
-              />
-              <span className="text-sm text-gray-800 dark:text-gray-200">
-                Selected cards only
-                {hasSelection && (
-                  <span className="ml-1 text-xs text-gray-400">
-                    ({selectedNoteIds.length})
-                  </span>
-                )}
-              </span>
-            </label>
-          </div>
-        </div>
+        )}
 
         {/* ── Similar words ───────────────────────────────────────────── */}
         {hasSimilarWordsConfig && (

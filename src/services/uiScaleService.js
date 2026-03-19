@@ -45,7 +45,7 @@ class UiScaleService {
   notifyListeners() {
     const scale = this.getScale();
     this.listeners.forEach((cb) => {
-      try { cb(scale); } catch (_) {}
+      try { cb(scale); } catch { /* ignore listener errors */ }
     });
   }
 }

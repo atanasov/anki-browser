@@ -146,7 +146,7 @@ const NoteCard = ({ note }) => {
   const gridSize = useStore((state) => state.settings?.gridSize || "medium");
   const aspectRatio = useStore((state) => state.settings?.aspectRatio || "square");
   const fitToCard = useStore((state) => state.settings?.fitToCard || false);
-  const editMode = useStore((state) => state.editMode);
+  const editMode = useStore((state) => state.editMode || state.practiceMode);
   const selectedNoteIds = useStore((state) => state.selectedNoteIds);
   const toggleNoteSelection = useStore((state) => state.toggleNoteSelection);
   const isSelected = selectedNoteIds.includes(note.note_id);

@@ -136,7 +136,8 @@ const QueryBuilderSection = ({
     setSelectedFlags(parsed.flags);
     setSelectedTags(parsed.tags);
     setSelectedFields(parsed.fields);
-  }, [rawQuery]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawQuery]); // parseRawQuery is a stable module-level function
 
   // Auto-update raw query when selections change
   // Only update if user has interacted with UI helpers to avoid overwriting existing queries

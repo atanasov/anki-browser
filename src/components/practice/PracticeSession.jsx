@@ -9,8 +9,9 @@ import useStore from "../../store";
 import { adaptiveFont, playAudio, PRACTICE_SIZE_TO_MAX_INDEX } from "./practiceUtils";
 import { SentenceWithHighlight, ClozePrompt } from "./SentenceHighlight";
 import AudioBtn from "./AudioBtn";
-import ReviewCard from "./ReviewCard";
-import PairDrill, { buildDrillPairs } from "./PairDrill";
+import WordCard from "./WordCard";
+import PairDrill from "./PairDrill";
+import { buildDrillPairs } from "./questionBuilder";
 import EndScreen from "./EndScreen";
 
 // Collapsible translation hint
@@ -65,9 +66,10 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
       ? sessionOptions.notes.filter((n) => weakNoteIds.includes(n.noteId))
       : sessionOptions.notes;
     session.start(notes, sessionOptions.exerciseType, sessionOptions.view);
-  }, [sessionOptions]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionOptions]); // session.start is stable (useCallback with no deps)
 
-  useEffect(() => { doStart(); }, []);
+  useEffect(() => { doStart(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { phase, current: questionIndex, currentQuestion, selected, revealed, progress, score, errors, confusionReport, advance, reveal, selfRate } = session;
 
@@ -101,7 +103,7 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
   // Blur any focused element behind the overlay so it can't swallow keyboard events
   useEffect(() => { document.activeElement?.blur(); }, []);
 
-  // Keyboard shortcuts — window listener so focus location doesn't matter
+  // Keyboard shortcuts
   useEffect(() => {
     if (phase !== "playing" || drillPairs) return;
     const onKey = (e) => {
@@ -164,7 +166,12 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
               </div>
             </div>
             <div className="flex items-center gap-4 text-sm shrink-0">
-              <span className="text-gray-400 dark:text-gray-500 tabular-nums">{progress.current} / {progress.total}</span>
+              <span className="text-gray-400 dark:text-gray-500 tabular-nums">
+                {progress.current} / {progress.total}
+                {progress.extra > 0 && (
+                  <span className="ml-1 text-amber-400 dark:text-amber-500">+{progress.extra}</span>
+                )}
+              </span>
               <span className="text-green-600 dark:text-green-400 font-semibold tabular-nums">✓ {score}</span>
               <span className="text-red-500 dark:text-red-400 font-semibold tabular-nums">✗ {errors}</span>
             </div>
@@ -225,7 +232,7 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
               )}
             </div>
 
-            {/* Recall mode */}
+            {/* Recall mode — unrevealed */}
             {isRecall && !revealed && (
               <button
                 onClick={reveal}
@@ -236,6 +243,7 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
               </button>
             )}
 
+            {/* Recall mode — revealed */}
             {isRecall && revealed && (
               <div className="flex flex-col gap-3 w-full">
                 <div className="w-full rounded-2xl border-2 border-purple-400 dark:border-purple-500 bg-purple-50 dark:bg-purple-900/20 px-6 py-5 flex flex-col items-center gap-2 text-center">
@@ -318,25 +326,30 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
             {!isRecall && isAnswered && (
               <div className="flex flex-col gap-3 w-full">
                 <div className={`grid gap-3 w-full ${isWrong ? "grid-cols-2" : "grid-cols-1"}`}>
-                  <ReviewCard
-                    option={currentQuestion.options[currentQuestion.correctIndex]}
-                    variant={isGaveUp ? "reveal" : "correct"}
-                    sentences={isWrong
-                      ? (currentQuestion.options[currentQuestion.correctIndex].sentences ?? currentQuestion.sentences)
-                      : reviewSentences}
-                    sentenceTranslation={isWrong
-                      ? (currentQuestion.options[currentQuestion.correctIndex].sentenceTranslation ?? currentQuestion.sentenceTranslation)
-                      : reviewSentenceTranslation}
-                    audioRaw={currentQuestion.audioRaw}
-                    fontMaxIndex={practiceMaxIndex}
-                    centered={!isWrong}
-                  />
+                  {(() => {
+                    const correctOpt = currentQuestion.options[currentQuestion.correctIndex];
+                    return (
+                      <WordCard
+                        {...correctOpt}
+                        label={isGaveUp ? "Answer" : "✓ Correct"}
+                        variant={isGaveUp ? "reveal" : "correct"}
+                        sentences={isWrong
+                          ? (correctOpt.sentences ?? currentQuestion.sentences)
+                          : reviewSentences}
+                        sentenceTranslation={isWrong
+                          ? (correctOpt.sentenceTranslation ?? currentQuestion.sentenceTranslation)
+                          : reviewSentenceTranslation}
+                        audioRaw={currentQuestion.audioRaw}
+                        fontMaxIndex={practiceMaxIndex}
+                        centered={!isWrong}
+                      />
+                    );
+                  })()}
                   {isWrong && (
-                    <ReviewCard
-                      option={currentQuestion.options[selected]}
+                    <WordCard
+                      {...currentQuestion.options[selected]}
+                      label="✗ You picked"
                       variant="wrong"
-                      sentences={currentQuestion.options[selected].sentences}
-                      sentenceTranslation={currentQuestion.options[selected].sentenceTranslation}
                       fontMaxIndex={practiceMaxIndex}
                     />
                   )}
