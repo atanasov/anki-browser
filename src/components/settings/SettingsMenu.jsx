@@ -43,6 +43,9 @@ const SettingsMenu = () => {
   // Reset
   const [showReset, setShowReset] = useState(false);
 
+  const [tagPrefix, setTagPrefix] = useState(() => dataService.getSetting("practiceTagPrefix", "weak"));
+  const [autoTagging, setAutoTagging] = useState(() => dataService.getSetting("autoPracticeTagging", true));
+
   useEffect(() => {
     setAnkiUrl(dataService.getSetting("ankiConnectUrl", "http://localhost:8765"));
     setAnkiToken(dataService.getSetting("ankiConnectToken", ""));
@@ -72,6 +75,18 @@ const SettingsMenu = () => {
     dataService.setAnkiConnectToken(ankiToken);
     setConnStatus({ ok: true, msg: "Saved!" });
     setTimeout(() => setConnStatus(null), 2000);
+  };
+
+  const handleTagPrefixBlur = () => {
+    const val = tagPrefix.trim() || "weak";
+    setTagPrefix(val);
+    updateSettings({ practiceTagPrefix: val });
+  };
+
+  const handleAutoTaggingToggle = () => {
+    const next = !autoTagging;
+    setAutoTagging(next);
+    updateSettings({ autoPracticeTagging: next });
   };
 
   const handleExport = () => {
@@ -188,6 +203,43 @@ const SettingsMenu = () => {
             </div>
           </div>
 
+        </div>
+      </div>
+
+      {divider}
+
+      {/* Practice tagging */}
+      <div>
+        <p className={sectionTitle}>Practice</p>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-600 dark:text-gray-400">Auto-tag weak cards</span>
+            <button
+              type="button"
+              onClick={handleAutoTaggingToggle}
+              className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-none ${autoTagging ? "bg-blue-600" : "bg-gray-300 dark:bg-gray-600"}`}
+              role="switch"
+              aria-checked={autoTagging}
+              aria-label="Auto-tag weak cards"
+            >
+              <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${autoTagging ? "translate-x-5" : "translate-x-1"}`} />
+            </button>
+          </div>
+          {autoTagging && (
+            <div>
+              <label className={lbl}>Tag prefix</label>
+              <input
+                className={inp}
+                value={tagPrefix}
+                onChange={(e) => setTagPrefix(e.target.value)}
+                onBlur={handleTagPrefixBlur}
+                placeholder="weak"
+              />
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                Tags format: {tagPrefix || "weak"}::pronunciation:2
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

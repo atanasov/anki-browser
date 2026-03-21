@@ -51,8 +51,16 @@ const CardBrowser = () => {
   const buildQuery = useCallback(() => {
     const base = activeView?.rawQuery?.trim() || "";
     if (!base) return "";
+
     const term = searchQuery.trim();
-    return term ? `${base} ${term}` : base;
+    if (!term) return base;
+
+    const fields = [...new Set([...(activeView.frontFields || []), ...(activeView.backFields || [])])];
+    if (fields.length > 0) {
+      const fieldQuery = fields.map((f) => `${f}:*${term}*`).join(" OR ");
+      return `${base} (${fieldQuery})`;
+    }
+    return `${base} ${term}`;
   }, [activeView, searchQuery]);
 
   const fetchNotes = useCallback(

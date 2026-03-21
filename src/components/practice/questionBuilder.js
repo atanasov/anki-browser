@@ -15,7 +15,20 @@ export const TYPES = {
   WORD_PRONUNCIATION: "word-pronunciation",
   PRONUNCIATION_WORD: "pronunciation-word",
   SENTENCE_CLOZE:     "sentence-cloze",
-  RECALL:             "recall",
+  MULTISTEP:          "multistep",
+  TYPE_MEANING:       "type-meaning",  // show word, type the translation
+  TYPE_WORD:          "type-word",     // show translation, type the word
+};
+
+export const TYPE_TO_TAG_CATEGORY = {
+  [TYPES.WORD_MEANING]:       "meaning",
+  [TYPES.MEANING_WORD]:       "meaning",
+  [TYPES.WORD_PRONUNCIATION]: "pronunciation",
+  [TYPES.PRONUNCIATION_WORD]: "pronunciation",
+  [TYPES.SENTENCE_CLOZE]:     "recognition",
+  [TYPES.MULTISTEP]:          null, // per-step category handled in selfRate
+  [TYPES.TYPE_MEANING]:       "typing",
+  [TYPES.TYPE_WORD]:          "typing",
 };
 
 export const EXERCISE_LABELS = {
@@ -24,7 +37,9 @@ export const EXERCISE_LABELS = {
   [TYPES.WORD_PRONUNCIATION]: "Word → Pronunciation",
   [TYPES.PRONUNCIATION_WORD]: "Pronunciation → Word",
   [TYPES.SENTENCE_CLOZE]:     "Sentence → Word",
-  [TYPES.RECALL]:             "Recall (self-assess)",
+  [TYPES.MULTISTEP]:          "Multi-step Drill",
+  [TYPES.TYPE_MEANING]:       "Word → Translation (type)",
+  [TYPES.TYPE_WORD]:          "Translation → Word (type)",
   mixed:                      "Mixed",
 };
 
@@ -34,7 +49,9 @@ export const PROMPT_LABELS = {
   [TYPES.WORD_PRONUNCIATION]: "What is the pronunciation?",
   [TYPES.PRONUNCIATION_WORD]: "Which word is this?",
   [TYPES.SENTENCE_CLOZE]:     "Fill in the blank",
-  [TYPES.RECALL]:             "Say aloud: pronunciation · meaning · example",
+  [TYPES.MULTISTEP]:          "What's the pronunciation?",
+  [TYPES.TYPE_MEANING]:       "Type the translation",
+  [TYPES.TYPE_WORD]:          "Type the word",
 };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -69,7 +86,10 @@ export const getAvailableTypes = (view) => {
     types.push(TYPES.SENTENCE_CLOZE);
   }
   if (sw.wordField && sw.pronunciationField && sw.translationField) {
-    types.push(TYPES.RECALL);
+    types.push(TYPES.MULTISTEP);
+  }
+  if (sw.wordField && sw.translationField) {
+    types.push(TYPES.TYPE_MEANING, TYPES.TYPE_WORD);
   }
   return types;
 };
@@ -89,13 +109,36 @@ export const buildQuestion = (note, pool, type, view) => {
     ? clean(note.fields?.[sw.sentenceTranslationField]) : "";
   const sentences = parseSentences(extractFieldValue(note.fields?.[sentenceFieldName] ?? ""));
 
-  if (type === TYPES.RECALL) {
-    if (!word || (!pronunciation && !meaning)) return null;
+  if (type === TYPES.MULTISTEP) {
+    if (!word || !pronunciation || !meaning) return null;
     return {
-      noteId: note.noteId, type: TYPES.RECALL,
-      prompt: word, promptLabel: PROMPT_LABELS[TYPES.RECALL],
+      noteId: note.noteId, type: TYPES.MULTISTEP,
+      prompt: word, promptLabel: PROMPT_LABELS[TYPES.MULTISTEP],
       answer: pronunciation, options: [], correctIndex: -1,
       word, pronunciation, meaning, sentence, audioRaw, sentences, sentenceTranslation,
+      tags: note.tags || [], cardIds: note.cards || [],
+    };
+  }
+
+  if (type === TYPES.TYPE_MEANING) {
+    if (!word || !meaning) return null;
+    return {
+      noteId: note.noteId, type: TYPES.TYPE_MEANING,
+      prompt: word, promptLabel: PROMPT_LABELS[TYPES.TYPE_MEANING],
+      answer: meaning, options: [], correctIndex: -1,
+      word, pronunciation, meaning, sentence, audioRaw, sentences, sentenceTranslation,
+      tags: note.tags || [], cardIds: note.cards || [],
+    };
+  }
+
+  if (type === TYPES.TYPE_WORD) {
+    if (!meaning || !word) return null;
+    return {
+      noteId: note.noteId, type: TYPES.TYPE_WORD,
+      prompt: meaning, promptLabel: PROMPT_LABELS[TYPES.TYPE_WORD],
+      answer: word, options: [], correctIndex: -1,
+      word, pronunciation, meaning, sentence, audioRaw, sentences, sentenceTranslation,
+      tags: note.tags || [], cardIds: note.cards || [],
     };
   }
 
@@ -124,7 +167,7 @@ export const buildQuestion = (note, pool, type, view) => {
       break;
     case TYPES.SENTENCE_CLOZE:
       if (!sentence || !word || !sentence.includes(word)) return null;
-      prompt = sentence.replace(word, "[___]"); answer = word;
+      prompt = sentence.split(word).join("[___]"); answer = word;
       getDistractor = (n) => clean(n.fields?.[sw.wordField]);
       break;
     default:
@@ -148,6 +191,7 @@ export const buildQuestion = (note, pool, type, view) => {
         ? clean(n.fields?.[sw.sentenceTranslationField]) : "";
       return {
         text, word: nWord, pronunciation: nPron, meaning: nMeaning,
+        noteId: n.noteId,
         overlap, sentences: parseSentences(nSentRaw), sentenceTranslation: nSentTrans,
       };
     })
@@ -173,13 +217,14 @@ export const buildQuestion = (note, pool, type, view) => {
   }
 
   const distractors  = picked.slice(0, NUM_DISTRACTORS);
-  const answerOption = { text: answer, word, pronunciation, meaning, sentences, sentenceTranslation };
+  const answerOption = { text: answer, word, pronunciation, meaning, noteId: note.noteId, sentences, sentenceTranslation };
   const options      = shuffle([answerOption, ...distractors]);
 
   return {
     noteId: note.noteId, type, prompt, promptLabel: PROMPT_LABELS[type],
     answer, options, correctIndex: options.findIndex((o) => o.text === answer),
     word, pronunciation, meaning, sentence, audioRaw, sentences, sentenceTranslation,
+    tags: note.tags || [], cardIds: note.cards || [],
   };
 };
 

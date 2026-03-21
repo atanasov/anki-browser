@@ -58,29 +58,36 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
   const session = usePracticeSession();
   const practiceFontSize = useStore((s) => s.settings?.practiceFontSize || "xlarge");
   const practiceMaxIndex = PRACTICE_SIZE_TO_MAX_INDEX[practiceFontSize] ?? 4;
-  const [drillPairs, setDrillPairs] = useState(null);
+  const [drillPairs,    setDrillPairs]    = useState(null);
+  const [inputText,     setInputText]     = useState("");
+  const [submittedText, setSubmittedText] = useState("");
 
   const doStart = useCallback((weakNoteIds = null) => {
     if (!sessionOptions) return;
-    const notes = weakNoteIds
-      ? sessionOptions.notes.filter((n) => weakNoteIds.includes(n.noteId))
-      : sessionOptions.notes;
-    session.start(notes, sessionOptions.exerciseType, sessionOptions.view);
+    const baseNotes = weakNoteIds
+      ? sessionOptions.pool.filter((n) => weakNoteIds.includes(n.noteId))
+      : sessionOptions.baseNotes;
+    session.start(baseNotes, sessionOptions.pool, sessionOptions.exerciseType, sessionOptions.view, sessionOptions.addConfused);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionOptions]); // session.start is stable (useCallback with no deps)
 
   useEffect(() => { doStart(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const { phase, current: questionIndex, currentQuestion, selected, revealed, progress, score, errors, confusionReport, advance, reveal, selfRate } = session;
+  const { phase, current: questionIndex, currentQuestion, selected, drillStep, revealed, progress, score, errors, confusionReport, tagSummary, advance, reveal, selfRate } = session;
 
   const [showTranslation, setShowTranslation] = useState(false);
-  useEffect(() => { setShowTranslation(false); }, [questionIndex]);
+  useEffect(() => {
+    setShowTranslation(false);
+    setInputText("");
+    setSubmittedText("");
+  }, [questionIndex]);
 
-  const isRecall   = currentQuestion?.type === TYPES.RECALL;
+  const isMultistep = currentQuestion?.type === TYPES.MULTISTEP;
+  const isTyping    = currentQuestion?.type === TYPES.TYPE_MEANING || currentQuestion?.type === TYPES.TYPE_WORD;
   const isGaveUp   = selected === -1;
   const isAnswered = selected !== null;
-  const isWrong    = isAnswered && !isGaveUp && selected !== currentQuestion?.correctIndex;
-  const isCorrect  = isAnswered && !isGaveUp && selected === currentQuestion?.correctIndex;
+  const isWrong    = !isMultistep && !isTyping && isAnswered && !isGaveUp && selected !== currentQuestion?.correctIndex;
+  const isCorrect  = !isMultistep && !isTyping && isAnswered && !isGaveUp && selected === currentQuestion?.correctIndex;
 
   // SENTENCE_CLOZE intentionally excluded: the cloze shows [___], after answer we want the completed sentence
   const sentenceAlreadyShown =
@@ -89,14 +96,14 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
   const reviewSentences           = sentenceAlreadyShown ? [] : (currentQuestion?.sentences ?? []);
   const reviewSentenceTranslation = sentenceAlreadyShown ? "" : (currentQuestion?.sentenceTranslation ?? "");
 
-  // Auto-play audio after answering
+  // Auto-play audio after answering (multiple choice) or when step 2 starts (multistep)
   useEffect(() => {
-    if (!isRecall && isAnswered && currentQuestion?.audioRaw) playAudio(currentQuestion.audioRaw);
-  }, [isRecall, isAnswered, currentQuestion?.audioRaw]);
+    if (!isMultistep && isAnswered && currentQuestion?.audioRaw) playAudio(currentQuestion.audioRaw);
+  }, [isMultistep, isAnswered, currentQuestion?.audioRaw]);
 
   useEffect(() => {
-    if (isRecall && revealed && currentQuestion?.audioRaw) playAudio(currentQuestion.audioRaw);
-  }, [isRecall, revealed, currentQuestion?.audioRaw]);
+    if ((isMultistep || isTyping) && revealed && currentQuestion?.audioRaw) playAudio(currentQuestion.audioRaw);
+  }, [isMultistep, isTyping, revealed, currentQuestion?.audioRaw]);
 
   const optionRefs = useRef([]);
 
@@ -107,13 +114,19 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
   useEffect(() => {
     if (phase !== "playing" || drillPairs) return;
     const onKey = (e) => {
-      if (isRecall) {
-        if (!revealed && (e.code === "Space" || e.code === "Enter")) {
-          e.preventDefault(); reveal();
-        } else if (revealed) {
+      if (isMultistep) {
+        if (!revealed) {
+          if (e.code === "Space" || e.code === "Enter") { e.preventDefault(); reveal(); }
+        } else {
           if (e.code === "Space" || e.code === "Enter" || e.code === "ArrowRight") { e.preventDefault(); selfRate(true); }
           else if (e.code === "ArrowLeft") { e.preventDefault(); selfRate(false); }
         }
+      } else if (isTyping) {
+        if (revealed) {
+          if (e.code === "Space" || e.code === "Enter" || e.code === "ArrowRight") { e.preventDefault(); selfRate(true); }
+          else if (e.code === "ArrowLeft") { e.preventDefault(); selfRate(false); }
+        }
+        // !revealed: input element handles keyboard naturally
       } else {
         if ((e.code === "Space" || e.code === "Enter") && isAnswered) {
           e.preventDefault(); advance();
@@ -122,13 +135,15 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
           if (num >= 1 && num <= 6) {
             const btn = optionRefs.current[num - 1];
             if (btn) { e.preventDefault(); btn.click(); }
+          } else if (e.key === "0") {
+            e.preventDefault(); session.answer(-1);
           }
         }
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [phase, drillPairs, isRecall, revealed, isAnswered, reveal, selfRate, advance]);
+  }, [phase, drillPairs, isMultistep, isTyping, drillStep, revealed, isAnswered, reveal, selfRate, advance, session]);
 
   if (drillPairs) {
     return (
@@ -172,6 +187,11 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
                   <span className="ml-1 text-amber-400 dark:text-amber-500">+{progress.extra}</span>
                 )}
               </span>
+              {isMultistep && (
+                <span className="text-xs text-purple-500 dark:text-purple-400 font-medium tabular-nums">
+                  {drillStep}/2
+                </span>
+              )}
               <span className="text-green-600 dark:text-green-400 font-semibold tabular-nums">✓ {score}</span>
               <span className="text-red-500 dark:text-red-400 font-semibold tabular-nums">✗ {errors}</span>
             </div>
@@ -192,7 +212,9 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
             {/* Question card */}
             <div className="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 px-8 py-7 text-center">
               <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-5">
-                {currentQuestion.promptLabel}
+                {isMultistep
+                  ? (drillStep === 1 ? "What's the pronunciation?" : "What's the meaning?")
+                  : currentQuestion.promptLabel}
               </p>
 
               {currentQuestion.type === TYPES.SENTENCE_CLOZE ? (
@@ -213,7 +235,19 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
                   <p className={`font-bold text-gray-900 dark:text-gray-100 leading-tight ${adaptiveFont(currentQuestion.prompt, practiceMaxIndex)}`}>
                     {currentQuestion.prompt}
                   </p>
-                  {currentQuestion.sentence &&
+                  {isMultistep && drillStep === 1 && revealed && currentQuestion.pronunciation && (
+                    <div className="mt-4 flex flex-col items-center gap-2">
+                      <p className="text-blue-500 dark:text-blue-400 text-2xl font-medium">{currentQuestion.pronunciation}</p>
+                      <AudioBtn audioRaw={currentQuestion.audioRaw} />
+                    </div>
+                  )}
+                  {isMultistep && drillStep === 2 && currentQuestion.pronunciation && (
+                    <div className="mt-4 flex flex-col items-center gap-2">
+                      <p className="text-blue-500 dark:text-blue-400 text-2xl font-medium">{currentQuestion.pronunciation}</p>
+                      <AudioBtn audioRaw={currentQuestion.audioRaw} />
+                    </div>
+                  )}
+                  {!isMultistep && currentQuestion.sentence &&
                     (currentQuestion.type === TYPES.WORD_MEANING || currentQuestion.type === TYPES.WORD_PRONUNCIATION) && (
                     <>
                       <p className={`mt-5 text-gray-500 dark:text-gray-400 leading-relaxed ${adaptiveFont(currentQuestion.prompt, practiceMaxIndex)}`}>
@@ -232,63 +266,135 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
               )}
             </div>
 
-            {/* Recall mode — unrevealed */}
-            {isRecall && !revealed && (
+            {/* Multi-step drill — step 1 (pronunciation) reveal then rate */}
+            {isMultistep && drillStep === 1 && !revealed && (
               <button
                 onClick={reveal}
                 className="w-full py-5 rounded-2xl bg-white dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-purple-400 dark:hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all text-gray-400 dark:text-gray-500 hover:text-purple-600 dark:hover:text-purple-400 font-medium text-lg cursor-pointer"
               >
-                Tap to reveal
+                Reveal pronunciation
                 <span className="ml-2 text-sm opacity-60">Space</span>
               </button>
             )}
 
-            {/* Recall mode — revealed */}
-            {isRecall && revealed && (
+            {isMultistep && drillStep === 1 && revealed && (
+              <div className="grid grid-cols-2 gap-3 w-full">
+                <button
+                  onClick={() => selfRate(false)}
+                  className="py-4 rounded-2xl border-2 border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-semibold text-base"
+                >
+                  ✗ Missed it <span className="ml-2 text-xs opacity-50 font-normal">←</span>
+                </button>
+                <button
+                  onClick={() => selfRate(true)}
+                  className="py-4 rounded-2xl bg-green-600 hover:bg-green-700 text-white transition-colors font-semibold text-base"
+                >
+                  ✓ Knew it <span className="ml-2 text-xs opacity-70 font-normal">Space</span>
+                </button>
+              </div>
+            )}
+
+            {/* Multi-step drill — step 2 (meaning) reveal then rate */}
+            {isMultistep && drillStep === 2 && !revealed && (
+              <button
+                onClick={reveal}
+                className="w-full py-5 rounded-2xl bg-white dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-purple-400 dark:hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all text-gray-400 dark:text-gray-500 hover:text-purple-600 dark:hover:text-purple-400 font-medium text-lg cursor-pointer"
+              >
+                Reveal meaning
+                <span className="ml-2 text-sm opacity-60">Space</span>
+              </button>
+            )}
+
+            {isMultistep && drillStep === 2 && revealed && (
               <div className="flex flex-col gap-3 w-full">
-                <div className="w-full rounded-2xl border-2 border-purple-400 dark:border-purple-500 bg-purple-50 dark:bg-purple-900/20 px-6 py-5 flex flex-col items-center gap-2 text-center">
-                  <div className={`font-bold leading-tight text-gray-900 dark:text-gray-100 ${adaptiveFont(currentQuestion.word, practiceMaxIndex)}`}>
-                    {currentQuestion.word}
-                  </div>
-                  <AudioBtn audioRaw={currentQuestion.audioRaw} />
-                  {currentQuestion.pronunciation && (
-                    <div className="text-blue-500 dark:text-blue-400 text-2xl font-medium">{currentQuestion.pronunciation}</div>
-                  )}
-                  {currentQuestion.meaning && (
-                    <div className="text-gray-700 dark:text-gray-200 text-xl leading-snug">{currentQuestion.meaning}</div>
-                  )}
-                  {currentQuestion.sentences?.length > 0 && (
-                    <div className="mt-2 text-gray-500 dark:text-gray-400 leading-relaxed border-t border-purple-200 dark:border-purple-800/60 pt-3 w-full flex flex-col gap-2">
-                      {currentQuestion.sentences.map((s, i) => (
-                        <div key={i} className={adaptiveFont(s, Math.max(0, practiceMaxIndex - 2))}>
-                          <SentenceWithHighlight sentence={s} word={currentQuestion.word} />
-                        </div>
-                      ))}
-                      {currentQuestion.sentenceTranslation && (
-                        <div className="text-sm text-gray-400 dark:text-gray-500 italic mt-0.5">{currentQuestion.sentenceTranslation}</div>
-                      )}
-                    </div>
-                  )}
+                <div className="w-full rounded-2xl border-2 border-purple-400 dark:border-purple-500 bg-purple-50 dark:bg-purple-900/20 px-6 py-5 text-center">
+                  <p className={`font-medium text-gray-800 dark:text-gray-100 leading-snug ${adaptiveFont(currentQuestion.meaning, practiceMaxIndex)}`}>
+                    {currentQuestion.meaning}
+                  </p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     onClick={() => selfRate(false)}
                     className="py-4 rounded-2xl border-2 border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-semibold text-base"
                   >
-                    ✗ Not yet <span className="ml-2 text-xs opacity-50 font-normal">←</span>
+                    ✗ Missed it <span className="ml-2 text-xs opacity-50 font-normal">←</span>
                   </button>
                   <button
                     onClick={() => selfRate(true)}
                     className="py-4 rounded-2xl bg-green-600 hover:bg-green-700 text-white transition-colors font-semibold text-base"
                   >
-                    ✓ Know it <span className="ml-2 text-xs opacity-70 font-normal">Space</span>
+                    ✓ Knew it <span className="ml-2 text-xs opacity-70 font-normal">Space</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Typing exercise — input */}
+            {isTyping && !revealed && (
+              <div className="flex flex-col gap-3 w-full">
+                <input
+                  autoFocus
+                  type="text"
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.code === "Enter") {
+                      e.stopPropagation();
+                      const text = inputText.trim();
+                      if (text) { setSubmittedText(text); reveal(); setInputText(""); }
+                    }
+                  }}
+                  placeholder="Type your answer…"
+                  className="w-full px-5 py-4 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-lg outline-none focus:border-purple-400 dark:focus:border-purple-500 transition-colors"
+                />
+                <button
+                  onClick={() => { const text = inputText.trim(); if (text) { setSubmittedText(text); reveal(); setInputText(""); } }}
+                  disabled={!inputText.trim()}
+                  className="w-full py-3.5 rounded-2xl bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-semibold transition-colors"
+                >
+                  Check <span className="ml-2 text-xs opacity-60 font-normal">Enter</span>
+                </button>
+                <button
+                  onClick={() => selfRate(false)}
+                  className="w-full py-2 rounded-2xl border border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600 transition-colors text-sm font-medium"
+                >
+                  Skip / I don't know
+                </button>
+              </div>
+            )}
+
+            {/* Typing exercise — revealed: compare + self-rate */}
+            {isTyping && revealed && (
+              <div className="flex flex-col gap-3 w-full">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-5 py-4 flex flex-col items-center gap-1">
+                    <span className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-widest">You typed</span>
+                    <p className={`font-bold text-gray-800 dark:text-gray-200 leading-tight text-center ${adaptiveFont(submittedText, practiceMaxIndex)}`}>{submittedText}</p>
+                  </div>
+                  <div className="rounded-2xl border-2 border-purple-400 dark:border-purple-500 bg-purple-50 dark:bg-purple-900/20 px-5 py-4 flex flex-col items-center gap-1">
+                    <span className="text-xs text-purple-500 dark:text-purple-400 uppercase tracking-widest">Answer</span>
+                    <p className={`font-bold text-gray-900 dark:text-gray-100 leading-tight text-center ${adaptiveFont(currentQuestion.answer, practiceMaxIndex)}`}>{currentQuestion.answer}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => selfRate(false)}
+                    className="py-4 rounded-2xl border-2 border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-semibold text-base"
+                  >
+                    ✗ Wrong <span className="ml-2 text-xs opacity-50 font-normal">←</span>
+                  </button>
+                  <button
+                    onClick={() => selfRate(true)}
+                    className="py-4 rounded-2xl bg-green-600 hover:bg-green-700 text-white transition-colors font-semibold text-base"
+                  >
+                    ✓ Correct <span className="ml-2 text-xs opacity-70 font-normal">Space</span>
                   </button>
                 </div>
               </div>
             )}
 
             {/* Multiple choice — unanswered */}
-            {!isRecall && !isAnswered && (
+            {!isMultistep && !isTyping && !isAnswered && (
               <div className="flex flex-col gap-3 w-full">
                 <div className="grid grid-cols-2 gap-3 w-full">
                   {currentQuestion.options.map((opt, i) => {
@@ -308,7 +414,7 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
                         <span className={`font-bold leading-tight ${adaptiveFont(optText(opt), practiceMaxIndex)} ${optionTextColor(i, selected, currentQuestion.correctIndex)}`}>
                           {optText(opt)}
                         </span>
-                        {hint && <span className="text-sm font-normal leading-tight opacity-50">{hint}</span>}
+                        {hint && <span className="text-sm font-normal leading-tight opacity-50 dark:opacity-40 dark:text-gray-400">{hint}</span>}
                       </button>
                     );
                   })}
@@ -317,13 +423,13 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
                   onClick={() => session.answer(-1)}
                   className="w-full py-2.5 rounded-2xl border border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600 transition-colors text-sm font-medium"
                 >
-                  I don't know
+                  I don't know <span className="ml-1 text-xs opacity-40 font-normal">0</span>
                 </button>
               </div>
             )}
 
             {/* Multiple choice — answered */}
-            {!isRecall && isAnswered && (
+            {!isMultistep && !isTyping && isAnswered && (
               <div className="flex flex-col gap-3 w-full">
                 <div className={`grid gap-3 w-full ${isWrong ? "grid-cols-2" : "grid-cols-1"}`}>
                   {(() => {
@@ -371,6 +477,7 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
         {phase === "finished" && confusionReport && (
           <EndScreen
             report={confusionReport}
+            tagSummary={tagSummary}
             onRestart={(weakNoteIds) => doStart(weakNoteIds)}
             onDrillPairs={() => setDrillPairs(buildDrillPairs(confusionReport))}
             onClose={onClose}

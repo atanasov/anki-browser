@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-const EndScreen = ({ report, onRestart, onDrillPairs, onClose }) => {
+const EndScreen = ({ report, tagSummary = null, onRestart, onDrillPairs, onClose }) => {
   const [weakOnly, setWeakOnly] = useState(false);
 
   const pct = report.total > 0 ? Math.round((report.score / report.total) * 100) : 0;
@@ -22,6 +22,40 @@ const EndScreen = ({ report, onRestart, onDrillPairs, onClose }) => {
           {report.score} / {report.total} correct
         </div>
       </div>
+
+      {tagSummary && (tagSummary.flagOutcomes.red > 0 || tagSummary.flagOutcomes.orange > 0 || tagSummary.flagOutcomes.cleared > 0) && (
+        <div className="w-full">
+          <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">
+            Tags updated
+          </h3>
+          <div className="flex flex-col gap-1.5">
+            {tagSummary.flagOutcomes.red > 0 && (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
+                <span className="text-gray-700 dark:text-gray-300">
+                  {tagSummary.flagOutcomes.red} card{tagSummary.flagOutcomes.red !== 1 ? "s" : ""} struggling
+                </span>
+              </div>
+            )}
+            {tagSummary.flagOutcomes.orange > 0 && (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="w-2.5 h-2.5 rounded-full bg-orange-400 shrink-0" />
+                <span className="text-gray-700 dark:text-gray-300">
+                  {tagSummary.flagOutcomes.orange} card{tagSummary.flagOutcomes.orange !== 1 ? "s" : ""} inconsistent
+                </span>
+              </div>
+            )}
+            {tagSummary.flagOutcomes.cleared > 0 && (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-green-600 dark:text-green-400 font-bold text-base leading-none">✓</span>
+                <span className="text-gray-700 dark:text-gray-300">
+                  {tagSummary.flagOutcomes.cleared} card{tagSummary.flagOutcomes.cleared !== 1 ? "s" : ""} cleared
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Confused words */}
       {report.confusedWords.length > 0 && (

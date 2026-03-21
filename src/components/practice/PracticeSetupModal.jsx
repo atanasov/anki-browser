@@ -37,7 +37,8 @@ const Toggle = ({ value, onChange, label }) => (
 const PracticeSetupModal = ({ isOpen, onClose, onStart, view, noteIds }) => {
   const [includeSimilar, setIncludeSimilar] = useState(true);
   const [studiedOnly,    setStudiedOnly]    = useState(true);
-  const [exerciseType,   setExerciseType]   = useState("mixed");
+  const [addConfused,    setAddConfused]    = useState(true);
+  const [selectedTypes,  setSelectedTypes]  = useState([]);
   const [loading,        setLoading]        = useState(false);
   const [loadingStatus,  setLoadingStatus]  = useState("");
   const [error,          setError]          = useState(null);
@@ -45,10 +46,14 @@ const PracticeSetupModal = ({ isOpen, onClose, onStart, view, noteIds }) => {
   const hasSimilarWordsConfig = view?.similarWords?.enabled && view?.similarWords?.wordField;
   const availableTypes        = getAvailableTypes(view);
 
+  const toggleType = (t) => setSelectedTypes((prev) =>
+    prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]
+  );
+
   // Reset on open
   useEffect(() => {
     if (!isOpen) return;
-    setExerciseType("mixed");
+    setSelectedTypes(availableTypes);
     setError(null);
     setLoadingStatus("");
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -69,7 +74,7 @@ const PracticeSetupModal = ({ isOpen, onClose, onStart, view, noteIds }) => {
         return;
       }
 
-      let baseNotes = await ankiConnect.getNotesInfo(baseIds);
+      const baseNotes = await ankiConnect.getNotesInfo(baseIds);
 
       // ── Step 2: expand with similar words ────────────────────────────
       let allNotes = baseNotes;
@@ -110,7 +115,7 @@ const PracticeSetupModal = ({ isOpen, onClose, onStart, view, noteIds }) => {
         }
       }
 
-      onStart({ notes: allNotes, exerciseType, view });
+      onStart({ baseNotes, pool: allNotes, exerciseType: selectedTypes, view, addConfused: includeSimilar && addConfused });
     } catch (err) {
       logger.error("Practice setup failed:", err);
       setError("Failed to load cards. Make sure Anki is running.");
@@ -155,59 +160,65 @@ const PracticeSetupModal = ({ isOpen, onClose, onStart, view, noteIds }) => {
             </div>
 
             {includeSimilar && (
-              <div className="flex items-center justify-between pl-1">
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  Studied cards only (is:review or is:learn)
-                </span>
-                <Toggle
-                  value={studiedOnly}
-                  onChange={setStudiedOnly}
-                  label="Studied only"
-                />
+              <div className="flex flex-col gap-2 pl-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    Studied cards only (is:review or is:learn)
+                  </span>
+                  <Toggle
+                    value={studiedOnly}
+                    onChange={setStudiedOnly}
+                    label="Studied only"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    Add wrong picks to session
+                  </span>
+                  <Toggle
+                    value={addConfused}
+                    onChange={setAddConfused}
+                    label="Add confused words"
+                  />
+                </div>
               </div>
             )}
           </div>
         )}
 
-        {/* ── Exercise type ────────────────────────────────────────────── */}
+        {/* ── Exercise types ───────────────────────────────────────────── */}
         {availableTypes.length > 0 && (
           <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Exercise type
-            </p>
-            <div className="flex flex-col gap-2">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="radio"
-                  name="exerciseType"
-                  value="mixed"
-                  checked={exerciseType === "mixed"}
-                  onChange={() => setExerciseType("mixed")}
-                  className="accent-blue-600"
-                />
-                <span className="text-sm text-gray-800 dark:text-gray-200">
-                  {EXERCISE_LABELS.mixed}
-                  <span className="ml-1 text-xs text-gray-400">
-                    (recommended)
-                  </span>
-                </span>
-              </label>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Exercise types
+              </p>
+              <button
+                type="button"
+                onClick={() => setSelectedTypes(selectedTypes.length === availableTypes.length ? [] : availableTypes)}
+                className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                {selectedTypes.length === availableTypes.length ? "Deselect all" : "Select all"}
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
               {availableTypes.map((t) => (
-                <label key={t} className="flex items-center gap-3 cursor-pointer">
+                <label key={t} className="flex items-center gap-2 cursor-pointer">
                   <input
-                    type="radio"
-                    name="exerciseType"
-                    value={t}
-                    checked={exerciseType === t}
-                    onChange={() => setExerciseType(t)}
-                    className="accent-blue-600"
+                    type="checkbox"
+                    checked={selectedTypes.includes(t)}
+                    onChange={() => toggleType(t)}
+                    className="accent-blue-600 w-4 h-4 shrink-0"
                   />
-                  <span className="text-sm text-gray-800 dark:text-gray-200">
+                  <span className="text-sm text-gray-800 dark:text-gray-200 leading-tight">
                     {EXERCISE_LABELS[t]}
                   </span>
                 </label>
               ))}
             </div>
+            {selectedTypes.length === 0 && (
+              <p className="text-xs text-red-500 dark:text-red-400 mt-2">Select at least one type.</p>
+            )}
           </div>
         )}
 
@@ -229,7 +240,7 @@ const PracticeSetupModal = ({ isOpen, onClose, onStart, view, noteIds }) => {
           </button>
           <button
             onClick={handleStart}
-            disabled={loading || availableTypes.length === 0}
+            disabled={loading || availableTypes.length === 0 || selectedTypes.length === 0}
             className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white rounded-lg transition-colors text-sm font-medium flex items-center justify-center gap-2"
           >
             {loading ? (
