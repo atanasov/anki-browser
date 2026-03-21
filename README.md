@@ -31,12 +31,12 @@ A client-only PWA that connects to your local Anki Desktop and lets you browse y
 - **Bulk Edit** — Select multiple cards and add/remove tags or suspend them via AnkiConnect
 
 ### Practice Mode
-- **Flashcard** — Classic flip-to-reveal practice
-- **Multiple choice** — 6-option quiz generated from your deck
-- **Word → Meaning, Word → Pronunciation, Pronunciation → Word** — targeted drill types
-- **Sentence cloze** — Fill-in-the-blank from example sentences
-- **Confusion report** — End-of-session summary of missed words with wrong picks highlighted
-- **Weak-words retry** — Practice only the words you got wrong in the previous session
+- **8 exercise types** — Word↔Meaning, Word↔Pronunciation, Sentence→Word (multiple choice), Multi-step Drill (self-rated pronunciation + meaning), and two typing exercises (Word→Translation, Translation→Word)
+- **Mixed mode** — all exercise types together; or pick individual types via checkboxes
+- **Similar words as distractors** — similar characters used as wrong options only; your selected cards drive the session size
+- **Auto-tagging** — every answer writes a `weak::{category}:{level}` tag to Anki in real time; session end sets card flags (red / orange / clear) based on highest level
+- **Confusion report** — end-of-session summary of missed words; **Pair Drill** for focused study of confused word pairs
+- **Retry weak words** — restart the session with only the cards you got wrong
 
 ### Similar Words Popup
 - Shows cards from your deck that share characters with the current word, grouped by character in columns
@@ -59,6 +59,8 @@ A client-only PWA that connects to your local Anki Desktop and lets you browse y
 - **Import / Export** — Backup and restore all views and settings as JSON; merge or overwrite
 - **PWA** — Installable as a desktop app, works offline for browsing cached cards
 - **Media cache** — Images and audio cached locally with configurable TTL (default 24 h)
+- **Auto-tagging toggle** — Enable/disable real-time weak tag writing globally
+- **Tag prefix** — Configurable prefix for weakness tags (default: `weak`)
 
 ---
 
@@ -86,7 +88,7 @@ Open `http://localhost:5173` in your browser. Make sure Anki is running first.
 2. **Browse** — All matching cards load in a responsive grid; click to flip, click the card info button for details
 3. **Filter** — Use the search bar for quick text search, or open Advanced Query for full Anki syntax
 4. **Explore** — Open the Similar Words or Example Sentences popup from any card to see related content
-5. **Practice** — Start a practice session from any view; choose the exercise type and number of cards
+5. **Practice** — Start a session from any view; pick exercise types, drill, and track weakness tags automatically
 6. **Edit** — Enable Edit Mode to select cards and bulk-edit tags or suspend them
 
 ## Tech Stack
@@ -123,6 +125,8 @@ The app is deployed to [Netlify](https://anki-games.netlify.app/) on every push 
 | Card size              | Small / Medium / Large grid                                           |
 | Aspect ratio           | Square / Portrait / Landscape                                         |
 | Card font size         | S / M / L / XL / 2XL / 3XL / 4XL / 5XL, or *Fit to card* auto-size  |
+| Auto-practice tagging  | Write `weak::*` tags to Anki in real time during practice             |
+| Practice tag prefix    | Prefix for weakness tags (default: `weak`)                            |
 
 ## Contributing
 
