@@ -498,21 +498,16 @@ class AnkiConnectService {
   }
 
   // flag: 0 = none, 1 = red, 2 = orange, 3 = green, 4 = blue, 5 = pink, 6 = teal, 7 = purple
-  // Falls back to setSpecificValueOfCard if the AnkiConnect version doesn't support setFlag.
   async setFlag(cardIds, flag) {
-    try {
-      return await this.makeRequest("setFlag", { cards: cardIds, flag });
-    } catch (err) {
-      if (!err.message?.includes("unsupported action")) throw err;
-      // Older AnkiConnect: set flags one card at a time via setSpecificValueOfCard
-      for (const cardId of cardIds) {
-        await this.makeRequest("setSpecificValueOfCard", {
+    return await Promise.all(
+      cardIds.map((cardId) =>
+        this.makeRequest("setSpecificValueOfCard", {
           card: cardId,
           keys: ["flags"],
-          newValues: [String(flag)],
-        });
-      }
-    }
+          newValues: [flag],
+        })
+      )
+    );
   }
 
   // days: "0" = today, "1" = tomorrow, etc.
