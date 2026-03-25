@@ -3,23 +3,26 @@
 """
 extract_sentences.py
 
-Copies sentence fields from every note in the "Mandarin-Vocabulary" deck
-(note type: HSK) into the "Mandarin-Sentences" deck (note type: HSK Sentences).
+Copies all 8 086 notes from the "SpoonFedChinese" deck (note type: SpoonFedNote)
+into the "Mandarin-Sentences" deck (note type: HSK Sentences).
+All Hanzi/Pinyin content is simplified Chinese.
 
-Source note type  : HSK            (deck: Mandarin-Vocabulary)
-Target note type  : HSK Sentences  (deck: Mandarin-Sentences)
+Source note type  : SpoonFedNote    (deck: SpoonFedChinese)
+  Fields: English | Pinyin | Hanzi | Audio
 
-Field mapping (all fields in HSK Sentences exist verbatim in HSK):
-  Key
-  SentenceSimplified     ← primary field; notes with empty value are skipped
-  SentenceTraditional
-  SentenceSimplifiedCloze
-  SentenceTraditionalCloze
-  SentencePinyin.1
-  SentencePinyin.2
-  SentenceMeaning
-  SentenceAudio
-  SentenceImage
+Target note type  : HSK Sentences   (deck: Mandarin-Sentences)
+  Fields: Key | SentenceSimplified | SentenceTraditional |
+          SentenceSimplifiedCloze | SentenceTraditionalCloze |
+          SentencePinyin.1 | SentencePinyin.2 | SentenceMeaning |
+          SentenceAudio | SentenceImage
+
+Field mapping (source → target):
+  Hanzi   → SentenceSimplified   ← dedup key; empty = note skipped
+  Hanzi   → Key                  ← first field, must be non-empty
+  Pinyin  → SentencePinyin.1
+  English → SentenceMeaning
+  Audio   → SentenceAudio
+  (all other HSK Sentences fields are left empty)
 
 Requirements:
   - Anki Desktop must be running
@@ -40,28 +43,23 @@ from html.parser import HTMLParser
 CONNECT_URL    = "http://localhost:8765"
 API_KEY        = ""   # leave empty if no AnkiConnect API key is set
 
-SOURCE_DECK    = "Mandarin-Vocabulary"
-SOURCE_MODEL   = "HSK"
+SOURCE_DECK    = "SpoonFedChinese"
+SOURCE_MODEL   = "SpoonFedNote"
 
 TARGET_DECK    = "Mandarin-Sentences"
 TARGET_MODEL   = "HSK Sentences"
 
-# Fields to copy — must match field names in both note types exactly.
-# Order follows the HSK Sentences note type definition.
-COPY_FIELDS = [
-    "Key",
-    "SentenceSimplified",        # primary: notes missing this are skipped
-    "SentenceTraditional",
-    "SentenceSimplifiedCloze",
-    "SentenceTraditionalCloze",
-    "SentencePinyin.1",
-    "SentencePinyin.2",
-    "SentenceMeaning",
-    "SentenceAudio",
-    "SentenceImage",
-]
+# source field (SpoonFedNote) → target field (HSK Sentences)
+# Fields not present on a note are written as "" in the target.
+FIELD_MAP: dict[str, str] = {
+    "Hanzi":   "SentenceSimplified",   # primary dedup field
+    "Pinyin":  "SentencePinyin.1",
+    "English": "SentenceMeaning",
+    "Audio":   "SentenceAudio",
+}
 
-PRIMARY_FIELD  = "SentenceSimplified"
+# The SOURCE field whose mapped target value serves as the dedup key.
+PRIMARY_SOURCE_FIELD = "Hanzi"
 BATCH_SIZE     = 500   # notes per notesInfo request
 
 # ── AnkiConnect helpers ───────────────────────────────────────────────────────
@@ -123,17 +121,20 @@ def main() -> None:
 
     print(f"Source : deck='{SOURCE_DECK}'  model='{SOURCE_MODEL}'")
     print(f"Target : deck='{TARGET_DECK}'  model='{TARGET_MODEL}'")
-    print(f"Fields : {COPY_FIELDS}\n")
+    mapping_str = "  " + "\n  ".join(f"{s} → {t}" for s, t in FIELD_MAP.items())
+    print(f"Field map:\n{mapping_str}\n")
 
     # Ensure target deck exists (no-op if already there)
     anki("createDeck", deck=TARGET_DECK)
+
+    PRIMARY_TARGET_FIELD = FIELD_MAP[PRIMARY_SOURCE_FIELD]
 
     # Load existing sentences from target deck for deduplication
     print("Loading existing sentences from target deck...")
     existing_ids    = find_notes(f'deck:"{TARGET_DECK}"')
     existing_notes  = notes_info(existing_ids)
     existing: set[str] = {
-        plain(n["fields"].get(PRIMARY_FIELD, {}).get("value", ""))
+        plain(n["fields"].get(PRIMARY_TARGET_FIELD, {}).get("value", ""))
         for n in existing_notes
     }
     existing.discard("")
@@ -156,14 +157,16 @@ def main() -> None:
         for note in notes_info(batch):
             src = note.get("fields", {})
 
-            # Build target fields — missing source fields become ""
+            # Build target fields — source fields not found on this note become ""
             fields: dict[str, str] = {
-                f: (src.get(f) or {}).get("value", "")
-                for f in COPY_FIELDS
+                target: (src.get(source) or {}).get("value", "")
+                for source, target in FIELD_MAP.items()
             }
+            # Key is the first field of HSK Sentences and must be non-empty
+            fields["Key"] = fields["SentenceSimplified"]
 
             # Skip if primary sentence field is empty
-            primary_text = plain(fields[PRIMARY_FIELD])
+            primary_text = plain(fields[PRIMARY_TARGET_FIELD])
             if not primary_text:
                 skipped_empty += 1
                 continue
@@ -205,7 +208,7 @@ def main() -> None:
   Skipped (dupe)  : {skipped_dupe}
   Skipped (empty) : {skipped_empty}
 
-Open Anki → '{TARGET_DECK}' to review the new cards.
+Open Anki → '{TARGET_DECK}' to review the copied cards.
 """)
 
 

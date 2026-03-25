@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { useEffect } from "react";
 import CardBrowserPage from "./pages/CardBrowserPage";
+import HelpPage from "./pages/HelpPage";
 import Header from "./components/Header";
 import ErrorBoundary from "./components/common/ErrorBoundary";
 import Toast from "./components/common/Toast";
@@ -34,6 +35,7 @@ function App() {
             <ErrorBoundary>
               <Routes>
                 <Route path="/" element={<CardBrowserPage />} />
+                <Route path="/help" element={<HelpPage />} />
               </Routes>
             </ErrorBoundary>
           </main>

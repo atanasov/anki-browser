@@ -10,22 +10,24 @@ import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { shuffle } from "../components/practice/practiceUtils";
 import {
   TYPES,
+  TYPE_TO_TAG_CATEGORY,
   getAvailableTypes,
   buildQuestion,
+  buildSentenceQuestion,
 } from "../components/practice/questionBuilder";
 import ankiConnect from "../services/ankiConnect";
 import dataService from "../services/dataService";
 import logger from "../utils/logger";
-import { TYPE_TO_TAG_CATEGORY } from "../components/practice/questionBuilder";
 
 // Re-export so existing import sites don't need to change
 export { TYPES, EXERCISE_LABELS, PROMPT_LABELS, getAvailableTypes } from "../components/practice/questionBuilder";
-// Also expose MULTISTEP for PracticeSession UI
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 
 /** Max times a wrong answer is re-queued — prevents truly infinite sessions */
 const MAX_REQUEUES = 2;
+
+const SENTENCE_TYPES = [TYPES.SENTENCE_TRANSLATION, TYPES.SENTENCE_DICTATION];
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -81,15 +83,12 @@ export const usePracticeSession = () => {
   const [results,      setResults]      = useState([]);
   const [phase,        setPhase]        = useState("idle");
 
-  const [drillStep,    setDrillStep]    = useState(1); // 1 or 2 for MULTISTEP questions
-
   const [tagSummary,   setTagSummary]   = useState(null);
   const tagStateRef        = useRef({}); // { noteId: { category: level } }
   const tagChangesRef      = useRef({}); // { noteId: { category: { from, to } } }
   const touchedNoteIdsRef  = useRef(new Set());
   const touchedCardsRef    = useRef({});  // { noteId: cardIds[] }
   const updateWeakTagRef   = useRef(null);
-  const drillStep1CorrectRef = useRef(true); // tracks step 1 result for re-queue logic in step 2
 
   const poolRef            = useRef([]); // all notes (for distractor generation)
   const viewRef            = useRef(null);
@@ -128,7 +127,7 @@ export const usePracticeSession = () => {
     })();
   };
 
-  const start = useCallback((baseNotes, pool, exerciseType, view, addConfused = false) => {
+  const start = useCallback((baseNotes, pool, exerciseType, view, addConfused = false, sentenceMap = null) => {
     const available = getAvailableTypes(view);
     if (available.length === 0) return;
 
@@ -136,11 +135,29 @@ export const usePracticeSession = () => {
       ? exerciseType.filter((t) => available.includes(t))
       : exerciseType === "mixed" ? available : [exerciseType];
     if (types.length === 0) return;
-    const qs = shuffle(
+
+    const regularTypes  = types.filter((t) => !SENTENCE_TYPES.includes(t));
+    const sentenceTypes = types.filter((t) => SENTENCE_TYPES.includes(t));
+
+    const regularQs = shuffle(
       baseNotes.flatMap((note) =>
-        types.map((type) => buildQuestion(note, pool, type, view))
+        regularTypes.map((type) => buildQuestion(note, pool, type, view))
       )
     ).filter(Boolean);
+
+    const sentenceQs = (sentenceMap && sentenceTypes.length > 0)
+      ? shuffle(
+          [...sentenceMap.entries()].flatMap(([vocabNoteId, sentenceNotes]) => {
+            const vocabNote = baseNotes.find((n) => n.noteId === vocabNoteId);
+            if (!vocabNote) return [];
+            return sentenceNotes.flatMap((sNote) =>
+              sentenceTypes.map((type) => buildSentenceQuestion(sNote, vocabNote, type, view))
+            );
+          })
+        ).filter(Boolean)
+      : [];
+
+    const qs = shuffle([...regularQs, ...sentenceQs]);
 
     if (qs.length === 0) return;
 
@@ -175,58 +192,19 @@ export const usePracticeSession = () => {
   /** Flip the recall card to show the answer */
   const reveal = useCallback(() => setRevealed(true), []);
 
-  /** Self-rate a multi-step drill card (two steps: pronunciation then meaning) */
+  /** Self-rate a typing or sentence exercise after reveal */
   const selfRate = useCallback((correct) => {
     const q = questions[current];
-
-    // Typing exercises — single-step self-rated
-    if (q.type === TYPES.TYPE_MEANING || q.type === TYPES.TYPE_WORD) {
-      setResults((prev) => [...prev, makeResult(q, correct, false, null)]);
-      updateWeakTagRef.current(q.noteId, "typing", correct);
-      const shouldRequeue = !correct && (q._requeues ?? 0) < MAX_REQUEUES;
-      if (shouldRequeue) setQuestions((prev) => requeueQuestion(prev, current));
-      setRevealed(false);
-      const next = current + 1;
-      const isLast = next >= questions.length;
-      if (isLast && !shouldRequeue) setPhase("finished");
-      else setCurrent(next);
-      return;
-    }
-
-    if (drillStep === 1) {
-      // Step 1: pronunciation check
-      setResults((prev) => [...prev, makeResult(q, correct, false, null)]);
-      updateWeakTagRef.current(q.noteId, "pronunciation", correct);
-      drillStep1CorrectRef.current = correct;
-
-      if (!correct && (q._requeues ?? 0) < MAX_REQUEUES) {
-        setQuestions((prev) => requeueQuestion(prev, current));
-      }
-      setRevealed(false);
-      setDrillStep(2);
-      return;
-    }
-
-    // Step 2: meaning check
     setResults((prev) => [...prev, makeResult(q, correct, false, null)]);
-    updateWeakTagRef.current(q.noteId, "meaning", correct);
-
-    // Re-queue for step 2 failure only if step 1 passed (step 1 failure already re-queued)
-    const shouldRequeue = !correct && drillStep1CorrectRef.current && (q._requeues ?? 0) < MAX_REQUEUES;
-    if (shouldRequeue) {
-      setQuestions((prev) => requeueQuestion(prev, current));
-    }
-
-    setDrillStep(1);
+    updateWeakTagRef.current(q.noteId, TYPE_TO_TAG_CATEGORY[q.type], correct);
+    const shouldRequeue = !correct && (q._requeues ?? 0) < MAX_REQUEUES;
+    if (shouldRequeue) setQuestions((prev) => requeueQuestion(prev, current));
     setRevealed(false);
-    const next   = current + 1;
+    const next = current + 1;
     const isLast = next >= questions.length;
-    if (isLast && !shouldRequeue) {
-      setPhase("finished");
-    } else {
-      setCurrent(next);
-    }
-  }, [questions, current, drillStep]);
+    if (isLast && !shouldRequeue) setPhase("finished");
+    else setCurrent(next);
+  }, [questions, current]);
 
   /** Record a multiple-choice answer. Pass -1 to "give up". Wrong answers are re-queued (up to MAX_REQUEUES times). */
   const answer = useCallback((optionIndex) => {
@@ -267,34 +245,19 @@ export const usePracticeSession = () => {
   /** Advance past a multiple-choice question after reviewing the answer */
   const advance = useCallback(() => {
     const next = current + 1;
+    setSelected(null);
     if (next >= questions.length) {
       setPhase("finished");
     } else {
       setCurrent(next);
-      setSelected(null);
     }
   }, [current, questions.length]);
 
   const confusionReport = useMemo(() => {
     if (phase !== "finished") return null;
 
-    // Collapse multi-step pairs: two step-results per card → one combined result.
-    // A card is correct only if BOTH steps were correct. Uses (noteId + _requeues)
-    // as the instance key so re-queued copies are counted separately.
-    const msGroups = {}; // key → merged result
-    const deduped  = [];
-    for (const r of results) {
-      if (r.type === TYPES.MULTISTEP) {
-        const key = `${r.noteId}_${r._requeues}`;
-        if (!msGroups[key]) { msGroups[key] = { ...r }; deduped.push(msGroups[key]); }
-        else if (!r.correct) msGroups[key].correct = false;
-      } else {
-        deduped.push(r);
-      }
-    }
-
     const wrongByNote = {};
-    deduped.forEach((r) => {
+    results.forEach((r) => {
       if (!r.correct) {
         if (!wrongByNote[r.noteId]) {
           wrongByNote[r.noteId] = {
@@ -317,8 +280,8 @@ export const usePracticeSession = () => {
     });
 
     const confusedWords = Object.values(wrongByNote).sort((a, b) => b.errors - a.errors);
-    const score = deduped.filter((r) => r.correct).length;
-    return { score, total: deduped.length, confusedWords };
+    const score = results.filter((r) => r.correct).length;
+    return { score, total: results.length, confusedWords };
   }, [phase, results]);
 
   // Update flags when session finishes
@@ -361,7 +324,6 @@ export const usePracticeSession = () => {
     current,
     selected,
     revealed,
-    drillStep,
     confusionReport,
     tagSummary,
     start,

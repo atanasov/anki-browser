@@ -10,6 +10,7 @@ import Modal from "../common/Modal";
 import ankiConnect from "../../services/ankiConnect";
 import { extractFieldValue } from "../../utils/fieldHelpers";
 import {
+  TYPES,
   getAvailableTypes,
   EXERCISE_LABELS,
 } from "../../hooks/usePracticeSession";
@@ -115,7 +116,38 @@ const PracticeSetupModal = ({ isOpen, onClose, onStart, view, noteIds }) => {
         }
       }
 
-      onStart({ baseNotes, pool: allNotes, exerciseType: selectedTypes, view, addConfused: includeSimilar && addConfused });
+      // ── Step 3: fetch sentence deck notes for sentence exercise types ──
+      let sentenceMap = null;
+      const SENTENCE_TYPES = [TYPES.SENTENCE_TRANSLATION, TYPES.SENTENCE_DICTATION];
+      const ex = view?.examples;
+
+      if (selectedTypes.some((t) => SENTENCE_TYPES.includes(t)) &&
+          ex?.enabled && ex?.deck && ex?.wordField && ex?.sentenceField) {
+        setLoadingStatus("Loading example sentences…");
+        sentenceMap = new Map();
+        const maxSentences = ex.maxSentences || 3;
+
+        for (const note of baseNotes) {
+          const word = extractFieldValue(note.fields?.[ex.wordField])
+            .replace(/<[^>]*>/g, "").trim();
+          if (!word) continue;
+
+          let query = `deck:"${ex.deck}" ${ex.sentenceField}:*${word}*`;
+          if (ex.noteType) query += ` note:"${ex.noteType}"`;
+
+          try {
+            const ids = await ankiConnect.findNotes(query);
+            if (ids.length > 0) {
+              const sentenceNotes = await ankiConnect.getNotesInfo(ids.slice(0, maxSentences));
+              if (sentenceNotes.length > 0) sentenceMap.set(note.noteId, sentenceNotes);
+            }
+          } catch {
+            // skip if fetch fails for this word
+          }
+        }
+      }
+
+      onStart({ baseNotes, pool: allNotes, exerciseType: selectedTypes, view, addConfused: includeSimilar && addConfused, sentenceMap });
     } catch (err) {
       logger.error("Practice setup failed:", err);
       setError("Failed to load cards. Make sure Anki is running.");

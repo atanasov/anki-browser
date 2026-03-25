@@ -10,48 +10,52 @@ import { shuffle } from "./practiceUtils";
 // ─── Exercise types ────────────────────────────────────────────────────────
 
 export const TYPES = {
-  WORD_MEANING:       "word-meaning",
-  MEANING_WORD:       "meaning-word",
-  WORD_PRONUNCIATION: "word-pronunciation",
-  PRONUNCIATION_WORD: "pronunciation-word",
-  SENTENCE_CLOZE:     "sentence-cloze",
-  MULTISTEP:          "multistep",
-  TYPE_MEANING:       "type-meaning",  // show word, type the translation
-  TYPE_WORD:          "type-word",     // show translation, type the word
+  WORD_MEANING:           "word-meaning",
+  MEANING_WORD:           "meaning-word",
+  WORD_PRONUNCIATION:     "word-pronunciation",
+  PRONUNCIATION_WORD:     "pronunciation-word",
+  SENTENCE_CLOZE:         "sentence-cloze",
+  TYPE_MEANING:           "type-meaning",       // show word, type the translation
+  TYPE_WORD:              "type-word",           // show translation, type the word
+  SENTENCE_TRANSLATION:   "sentence-translation", // show sentence, type the translation
+  SENTENCE_DICTATION:     "sentence-dictation",   // hear audio, type the sentence
 };
 
 export const TYPE_TO_TAG_CATEGORY = {
-  [TYPES.WORD_MEANING]:       "meaning",
-  [TYPES.MEANING_WORD]:       "meaning",
-  [TYPES.WORD_PRONUNCIATION]: "pronunciation",
-  [TYPES.PRONUNCIATION_WORD]: "pronunciation",
-  [TYPES.SENTENCE_CLOZE]:     "recognition",
-  [TYPES.MULTISTEP]:          null, // per-step category handled in selfRate
-  [TYPES.TYPE_MEANING]:       "typing",
-  [TYPES.TYPE_WORD]:          "typing",
+  [TYPES.WORD_MEANING]:           "meaning",
+  [TYPES.MEANING_WORD]:           "meaning",
+  [TYPES.WORD_PRONUNCIATION]:     "pronunciation",
+  [TYPES.PRONUNCIATION_WORD]:     "pronunciation",
+  [TYPES.SENTENCE_CLOZE]:         "recognition",
+  [TYPES.TYPE_MEANING]:           "typing",
+  [TYPES.TYPE_WORD]:              "typing",
+  [TYPES.SENTENCE_TRANSLATION]:   "recognition",
+  [TYPES.SENTENCE_DICTATION]:     "listening",
 };
 
 export const EXERCISE_LABELS = {
-  [TYPES.WORD_MEANING]:       "Word → Meaning",
-  [TYPES.MEANING_WORD]:       "Meaning → Word",
-  [TYPES.WORD_PRONUNCIATION]: "Word → Pronunciation",
-  [TYPES.PRONUNCIATION_WORD]: "Pronunciation → Word",
-  [TYPES.SENTENCE_CLOZE]:     "Sentence → Word",
-  [TYPES.MULTISTEP]:          "Multi-step Drill",
-  [TYPES.TYPE_MEANING]:       "Word → Translation (type)",
-  [TYPES.TYPE_WORD]:          "Translation → Word (type)",
-  mixed:                      "Mixed",
+  [TYPES.WORD_MEANING]:           "Word → Meaning",
+  [TYPES.MEANING_WORD]:           "Meaning → Word",
+  [TYPES.WORD_PRONUNCIATION]:     "Word → Pronunciation",
+  [TYPES.PRONUNCIATION_WORD]:     "Pronunciation → Word",
+  [TYPES.SENTENCE_CLOZE]:         "Sentence → Word",
+  [TYPES.TYPE_MEANING]:           "Word → Translation (type)",
+  [TYPES.TYPE_WORD]:              "Translation → Word (type)",
+  [TYPES.SENTENCE_TRANSLATION]:   "Sentence → Translation (type)",
+  [TYPES.SENTENCE_DICTATION]:     "Dictation (listen & type)",
+  mixed:                          "Mixed",
 };
 
 export const PROMPT_LABELS = {
-  [TYPES.WORD_MEANING]:       "What does this mean?",
-  [TYPES.MEANING_WORD]:       "Which word matches?",
-  [TYPES.WORD_PRONUNCIATION]: "What is the pronunciation?",
-  [TYPES.PRONUNCIATION_WORD]: "Which word is this?",
-  [TYPES.SENTENCE_CLOZE]:     "Fill in the blank",
-  [TYPES.MULTISTEP]:          "What's the pronunciation?",
-  [TYPES.TYPE_MEANING]:       "Type the translation",
-  [TYPES.TYPE_WORD]:          "Type the word",
+  [TYPES.WORD_MEANING]:           "What does this mean?",
+  [TYPES.MEANING_WORD]:           "Which word matches?",
+  [TYPES.WORD_PRONUNCIATION]:     "What is the pronunciation?",
+  [TYPES.PRONUNCIATION_WORD]:     "Which word is this?",
+  [TYPES.SENTENCE_CLOZE]:         "Fill in the blank",
+  [TYPES.TYPE_MEANING]:           "Type the translation",
+  [TYPES.TYPE_WORD]:              "Type the word",
+  [TYPES.SENTENCE_TRANSLATION]:   "Translate this sentence",
+  [TYPES.SENTENCE_DICTATION]:     "What do you hear?",
 };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -74,7 +78,8 @@ const parseSentences = (raw) => {
 /** Returns the exercise types available for a given view config */
 export const getAvailableTypes = (view) => {
   const sw = view?.similarWords || {};
-  const sentenceField = sw.sentenceField || view?.examples?.sentenceField || "";
+  const ex = view?.examples || {};
+  const sentenceField = sw.sentenceField || ex.sentenceField || "";
   const types = [];
   if (sw.wordField && sw.translationField) {
     types.push(TYPES.WORD_MEANING, TYPES.MEANING_WORD);
@@ -85,11 +90,13 @@ export const getAvailableTypes = (view) => {
   if (sw.wordField && sentenceField) {
     types.push(TYPES.SENTENCE_CLOZE);
   }
-  if (sw.wordField && sw.pronunciationField && sw.translationField) {
-    types.push(TYPES.MULTISTEP);
-  }
   if (sw.wordField && sw.translationField) {
     types.push(TYPES.TYPE_MEANING, TYPES.TYPE_WORD);
+  }
+  // Sentence deck modes — require examples configured
+  if (ex.enabled && ex.deck && ex.wordField && ex.sentenceField) {
+    if (ex.meaningField) types.push(TYPES.SENTENCE_TRANSLATION);
+    if (ex.audioField)   types.push(TYPES.SENTENCE_DICTATION);
   }
   return types;
 };
@@ -108,17 +115,6 @@ export const buildQuestion = (note, pool, type, view) => {
   const sentenceTranslation = sw.sentenceTranslationField
     ? clean(note.fields?.[sw.sentenceTranslationField]) : "";
   const sentences = parseSentences(extractFieldValue(note.fields?.[sentenceFieldName] ?? ""));
-
-  if (type === TYPES.MULTISTEP) {
-    if (!word || !pronunciation || !meaning) return null;
-    return {
-      noteId: note.noteId, type: TYPES.MULTISTEP,
-      prompt: word, promptLabel: PROMPT_LABELS[TYPES.MULTISTEP],
-      answer: pronunciation, options: [], correctIndex: -1,
-      word, pronunciation, meaning, sentence, audioRaw, sentences, sentenceTranslation,
-      tags: note.tags || [], cardIds: note.cards || [],
-    };
-  }
 
   if (type === TYPES.TYPE_MEANING) {
     if (!word || !meaning) return null;
@@ -226,6 +222,49 @@ export const buildQuestion = (note, pool, type, view) => {
     word, pronunciation, meaning, sentence, audioRaw, sentences, sentenceTranslation,
     tags: note.tags || [], cardIds: note.cards || [],
   };
+};
+
+// ─── Sentence question builder ─────────────────────────────────────────────
+
+/**
+ * Build a question from a sentence-deck note.
+ * @param {object} sentenceNote  - note from the sentence deck
+ * @param {object} vocabNote     - the vocab note being practiced (used for noteId & tags)
+ * @param {string} type          - SENTENCE_TRANSLATION or SENTENCE_DICTATION
+ * @param {object} view
+ */
+export const buildSentenceQuestion = (sentenceNote, vocabNote, type, view) => {
+  const ex = view?.examples || {};
+  const sentence    = ex.sentenceField    ? clean(sentenceNote.fields?.[ex.sentenceField])  : "";
+  const translation = ex.meaningField     ? clean(sentenceNote.fields?.[ex.meaningField])   : "";
+  const audioRaw    = ex.audioField       ? extractFieldValue(sentenceNote.fields?.[ex.audioField]) : "";
+  const word        = ex.wordField        ? clean(vocabNote.fields?.[ex.wordField])          : "";
+
+  if (type === TYPES.SENTENCE_TRANSLATION) {
+    if (!sentence || !translation) return null;
+    return {
+      noteId: vocabNote.noteId, type,
+      prompt: sentence, promptLabel: PROMPT_LABELS[type],
+      answer: translation, options: [], correctIndex: -1,
+      audioRaw, word, pronunciation: "", meaning: translation,
+      sentence, translation, sentences: [], sentenceTranslation: translation,
+      tags: vocabNote.tags || [], cardIds: vocabNote.cards || [],
+    };
+  }
+
+  if (type === TYPES.SENTENCE_DICTATION) {
+    if (!sentence || !audioRaw) return null;
+    return {
+      noteId: vocabNote.noteId, type,
+      prompt: "", promptLabel: PROMPT_LABELS[type],
+      answer: sentence, options: [], correctIndex: -1,
+      audioRaw, word, pronunciation: "", meaning: sentence,
+      sentence, translation, sentences: [], sentenceTranslation: translation,
+      tags: vocabNote.tags || [], cardIds: vocabNote.cards || [],
+    };
+  }
+
+  return null;
 };
 
 // ─── Drill pairs ───────────────────────────────────────────────────────────

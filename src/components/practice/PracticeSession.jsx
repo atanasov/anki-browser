@@ -67,13 +67,13 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
     const baseNotes = weakNoteIds
       ? sessionOptions.pool.filter((n) => weakNoteIds.includes(n.noteId))
       : sessionOptions.baseNotes;
-    session.start(baseNotes, sessionOptions.pool, sessionOptions.exerciseType, sessionOptions.view, sessionOptions.addConfused);
+    session.start(baseNotes, sessionOptions.pool, sessionOptions.exerciseType, sessionOptions.view, sessionOptions.addConfused, sessionOptions.sentenceMap);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionOptions]); // session.start is stable (useCallback with no deps)
 
   useEffect(() => { doStart(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const { phase, current: questionIndex, currentQuestion, selected, drillStep, revealed, progress, score, errors, confusionReport, tagSummary, advance, reveal, selfRate } = session;
+  const { phase, current: questionIndex, currentQuestion, selected, revealed, progress, score, errors, confusionReport, tagSummary, advance, reveal, selfRate } = session;
 
   const [showTranslation, setShowTranslation] = useState(false);
   useEffect(() => {
@@ -82,12 +82,13 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
     setSubmittedText("");
   }, [questionIndex]);
 
-  const isMultistep = currentQuestion?.type === TYPES.MULTISTEP;
-  const isTyping    = currentQuestion?.type === TYPES.TYPE_MEANING || currentQuestion?.type === TYPES.TYPE_WORD;
+  const isTyping      = currentQuestion?.type === TYPES.TYPE_MEANING || currentQuestion?.type === TYPES.TYPE_WORD;
+  const isSentenceMode = currentQuestion?.type === TYPES.SENTENCE_TRANSLATION || currentQuestion?.type === TYPES.SENTENCE_DICTATION;
+  const isSelfRate    = isTyping || isSentenceMode; // modes that use type→reveal→self-rate flow
   const isGaveUp   = selected === -1;
   const isAnswered = selected !== null;
-  const isWrong    = !isMultistep && !isTyping && isAnswered && !isGaveUp && selected !== currentQuestion?.correctIndex;
-  const isCorrect  = !isMultistep && !isTyping && isAnswered && !isGaveUp && selected === currentQuestion?.correctIndex;
+  const isWrong    = !isSelfRate && isAnswered && !isGaveUp && selected !== currentQuestion?.correctIndex;
+  const isCorrect  = !isSelfRate && isAnswered && !isGaveUp && selected === currentQuestion?.correctIndex;
 
   // SENTENCE_CLOZE intentionally excluded: the cloze shows [___], after answer we want the completed sentence
   const sentenceAlreadyShown =
@@ -96,14 +97,22 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
   const reviewSentences           = sentenceAlreadyShown ? [] : (currentQuestion?.sentences ?? []);
   const reviewSentenceTranslation = sentenceAlreadyShown ? "" : (currentQuestion?.sentenceTranslation ?? "");
 
-  // Auto-play audio after answering (multiple choice) or when step 2 starts (multistep)
+  // Auto-play audio on multiple-choice answer reveal
   useEffect(() => {
-    if (!isMultistep && isAnswered && currentQuestion?.audioRaw) playAudio(currentQuestion.audioRaw);
-  }, [isMultistep, isAnswered, currentQuestion?.audioRaw]);
+    if (!isSelfRate && isAnswered && currentQuestion?.audioRaw) playAudio(currentQuestion.audioRaw);
+  }, [isSelfRate, isAnswered, currentQuestion?.audioRaw]);
 
+  // Auto-play audio when answer is revealed (all self-rate modes)
   useEffect(() => {
-    if ((isMultistep || isTyping) && revealed && currentQuestion?.audioRaw) playAudio(currentQuestion.audioRaw);
-  }, [isMultistep, isTyping, revealed, currentQuestion?.audioRaw]);
+    if (isSelfRate && revealed && currentQuestion?.audioRaw)
+      playAudio(currentQuestion.audioRaw);
+  }, [isSelfRate, revealed, currentQuestion?.audioRaw]);
+
+  // Auto-play dictation audio when question loads
+  useEffect(() => {
+    if (currentQuestion?.type === TYPES.SENTENCE_DICTATION && currentQuestion?.audioRaw)
+      playAudio(currentQuestion.audioRaw);
+  }, [questionIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const optionRefs = useRef([]);
 
@@ -114,19 +123,22 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
   useEffect(() => {
     if (phase !== "playing" || drillPairs) return;
     const onKey = (e) => {
-      if (isMultistep) {
-        if (!revealed) {
-          if (e.code === "Space" || e.code === "Enter") { e.preventDefault(); reveal(); }
-        } else {
-          if (e.code === "Space" || e.code === "Enter" || e.code === "ArrowRight") { e.preventDefault(); selfRate(true); }
-          else if (e.code === "ArrowLeft") { e.preventDefault(); selfRate(false); }
-        }
-      } else if (isTyping) {
+      const inInput = e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA";
+
+      // R — replay audio (any point, blocked when typing in input)
+      if ((e.key === "r" || e.key === "R") && !inInput && currentQuestion?.audioRaw) {
+        e.preventDefault(); playAudio(currentQuestion.audioRaw); return;
+      }
+
+      if (isSelfRate) {
         if (revealed) {
           if (e.code === "Space" || e.code === "Enter" || e.code === "ArrowRight") { e.preventDefault(); selfRate(true); }
           else if (e.code === "ArrowLeft") { e.preventDefault(); selfRate(false); }
+        } else {
+          // Escape — skip without typing
+          if (e.code === "Escape") { e.preventDefault(); selfRate(false); }
+          // Enter handled by input's onKeyDown
         }
-        // !revealed: input element handles keyboard naturally
       } else {
         if ((e.code === "Space" || e.code === "Enter") && isAnswered) {
           e.preventDefault(); advance();
@@ -143,7 +155,7 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [phase, drillPairs, isMultistep, isTyping, drillStep, revealed, isAnswered, reveal, selfRate, advance, session]);
+  }, [phase, drillPairs, isSelfRate, revealed, isAnswered, selfRate, advance, session, currentQuestion]);
 
   if (drillPairs) {
     return (
@@ -187,11 +199,6 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
                   <span className="ml-1 text-amber-400 dark:text-amber-500">+{progress.extra}</span>
                 )}
               </span>
-              {isMultistep && (
-                <span className="text-xs text-purple-500 dark:text-purple-400 font-medium tabular-nums">
-                  {drillStep}/2
-                </span>
-              )}
               <span className="text-green-600 dark:text-green-400 font-semibold tabular-nums">✓ {score}</span>
               <span className="text-red-500 dark:text-red-400 font-semibold tabular-nums">✗ {errors}</span>
             </div>
@@ -212,9 +219,7 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
             {/* Question card */}
             <div className="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 px-8 py-7 text-center">
               <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-5">
-                {isMultistep
-                  ? (drillStep === 1 ? "What's the pronunciation?" : "What's the meaning?")
-                  : currentQuestion.promptLabel}
+                {currentQuestion.promptLabel}
               </p>
 
               {currentQuestion.type === TYPES.SENTENCE_CLOZE ? (
@@ -230,24 +235,35 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
                     />
                   )}
                 </>
+              ) : currentQuestion.type === TYPES.SENTENCE_DICTATION ? (
+                /* Dictation — audio only, no text */
+                <div className="flex flex-col items-center gap-3 py-4">
+                  <AudioBtn audioRaw={currentQuestion.audioRaw} />
+                  <p className="text-xs text-gray-400 dark:text-gray-500">
+                    Listen and type what you hear
+                    <span className="ml-2 opacity-60">({currentQuestion.word})</span>
+                    <span className="ml-3 opacity-40">R to replay</span>
+                  </p>
+                </div>
+              ) : currentQuestion.type === TYPES.SENTENCE_TRANSLATION ? (
+                /* Sentence translation — show sentence + audio */
+                <div className="flex flex-col items-center gap-3">
+                  <p className={`text-gray-900 dark:text-gray-100 leading-relaxed text-center ${adaptiveFont(currentQuestion.prompt, Math.max(1, practiceMaxIndex - 1))}`}>
+                    <SentenceWithHighlight sentence={currentQuestion.prompt} word={currentQuestion.word} />
+                  </p>
+                  {currentQuestion.audioRaw && (
+                    <div className="flex items-center gap-2">
+                      <AudioBtn audioRaw={currentQuestion.audioRaw} />
+                      <span className="text-xs text-gray-400 dark:text-gray-500 opacity-40">R</span>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <>
                   <p className={`font-bold text-gray-900 dark:text-gray-100 leading-tight ${adaptiveFont(currentQuestion.prompt, practiceMaxIndex)}`}>
                     {currentQuestion.prompt}
                   </p>
-                  {isMultistep && drillStep === 1 && revealed && currentQuestion.pronunciation && (
-                    <div className="mt-4 flex flex-col items-center gap-2">
-                      <p className="text-blue-500 dark:text-blue-400 text-2xl font-medium">{currentQuestion.pronunciation}</p>
-                      <AudioBtn audioRaw={currentQuestion.audioRaw} />
-                    </div>
-                  )}
-                  {isMultistep && drillStep === 2 && currentQuestion.pronunciation && (
-                    <div className="mt-4 flex flex-col items-center gap-2">
-                      <p className="text-blue-500 dark:text-blue-400 text-2xl font-medium">{currentQuestion.pronunciation}</p>
-                      <AudioBtn audioRaw={currentQuestion.audioRaw} />
-                    </div>
-                  )}
-                  {!isMultistep && currentQuestion.sentence &&
+                  {currentQuestion.sentence &&
                     (currentQuestion.type === TYPES.WORD_MEANING || currentQuestion.type === TYPES.WORD_PRONUNCIATION) && (
                     <>
                       <p className={`mt-5 text-gray-500 dark:text-gray-400 leading-relaxed ${adaptiveFont(currentQuestion.prompt, practiceMaxIndex)}`}>
@@ -266,71 +282,8 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
               )}
             </div>
 
-            {/* Multi-step drill — step 1 (pronunciation) reveal then rate */}
-            {isMultistep && drillStep === 1 && !revealed && (
-              <button
-                onClick={reveal}
-                className="w-full py-5 rounded-2xl bg-white dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-purple-400 dark:hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all text-gray-400 dark:text-gray-500 hover:text-purple-600 dark:hover:text-purple-400 font-medium text-lg cursor-pointer"
-              >
-                Reveal pronunciation
-                <span className="ml-2 text-sm opacity-60">Space</span>
-              </button>
-            )}
-
-            {isMultistep && drillStep === 1 && revealed && (
-              <div className="grid grid-cols-2 gap-3 w-full">
-                <button
-                  onClick={() => selfRate(false)}
-                  className="py-4 rounded-2xl border-2 border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-semibold text-base"
-                >
-                  ✗ Missed it <span className="ml-2 text-xs opacity-50 font-normal">←</span>
-                </button>
-                <button
-                  onClick={() => selfRate(true)}
-                  className="py-4 rounded-2xl bg-green-600 hover:bg-green-700 text-white transition-colors font-semibold text-base"
-                >
-                  ✓ Knew it <span className="ml-2 text-xs opacity-70 font-normal">Space</span>
-                </button>
-              </div>
-            )}
-
-            {/* Multi-step drill — step 2 (meaning) reveal then rate */}
-            {isMultistep && drillStep === 2 && !revealed && (
-              <button
-                onClick={reveal}
-                className="w-full py-5 rounded-2xl bg-white dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-purple-400 dark:hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all text-gray-400 dark:text-gray-500 hover:text-purple-600 dark:hover:text-purple-400 font-medium text-lg cursor-pointer"
-              >
-                Reveal meaning
-                <span className="ml-2 text-sm opacity-60">Space</span>
-              </button>
-            )}
-
-            {isMultistep && drillStep === 2 && revealed && (
-              <div className="flex flex-col gap-3 w-full">
-                <div className="w-full rounded-2xl border-2 border-purple-400 dark:border-purple-500 bg-purple-50 dark:bg-purple-900/20 px-6 py-5 text-center">
-                  <p className={`font-medium text-gray-800 dark:text-gray-100 leading-snug ${adaptiveFont(currentQuestion.meaning, practiceMaxIndex)}`}>
-                    {currentQuestion.meaning}
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => selfRate(false)}
-                    className="py-4 rounded-2xl border-2 border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-semibold text-base"
-                  >
-                    ✗ Missed it <span className="ml-2 text-xs opacity-50 font-normal">←</span>
-                  </button>
-                  <button
-                    onClick={() => selfRate(true)}
-                    className="py-4 rounded-2xl bg-green-600 hover:bg-green-700 text-white transition-colors font-semibold text-base"
-                  >
-                    ✓ Knew it <span className="ml-2 text-xs opacity-70 font-normal">Space</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Typing exercise — input */}
-            {isTyping && !revealed && (
+            {/* Self-rate exercise — input */}
+            {isSelfRate && !revealed && (
               <div className="flex flex-col gap-3 w-full">
                 <input
                   autoFocus
@@ -358,13 +311,13 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
                   onClick={() => selfRate(false)}
                   className="w-full py-2 rounded-2xl border border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600 transition-colors text-sm font-medium"
                 >
-                  Skip / I don't know
+                  Skip / I don't know <span className="ml-1 text-xs opacity-40 font-normal">Esc</span>
                 </button>
               </div>
             )}
 
-            {/* Typing exercise — revealed: compare + self-rate */}
-            {isTyping && revealed && (
+            {/* Self-rate exercise — revealed: compare + self-rate */}
+            {isSelfRate && revealed && (
               <div className="flex flex-col gap-3 w-full">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-5 py-4 flex flex-col items-center gap-1">
@@ -394,7 +347,7 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
             )}
 
             {/* Multiple choice — unanswered */}
-            {!isMultistep && !isTyping && !isAnswered && (
+            {!isSelfRate && !isAnswered && (
               <div className="flex flex-col gap-3 w-full">
                 <div className="grid grid-cols-2 gap-3 w-full">
                   {currentQuestion.options.map((opt, i) => {
@@ -429,7 +382,7 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
             )}
 
             {/* Multiple choice — answered */}
-            {!isMultistep && !isTyping && isAnswered && (
+            {!isSelfRate && isAnswered && (
               <div className="flex flex-col gap-3 w-full">
                 <div className={`grid gap-3 w-full ${isWrong ? "grid-cols-2" : "grid-cols-1"}`}>
                   {(() => {

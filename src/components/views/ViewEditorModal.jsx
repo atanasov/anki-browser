@@ -163,6 +163,7 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
           meaningField: "",
           audioField: "",
           imageField: "",
+          maxSentences: 3,
         },
       });
       if (viewToEdit.rawQuery && viewToEdit.rawQuery.trim()) {
@@ -205,6 +206,7 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
           meaningField: "",
           audioField: "",
           imageField: "",
+          maxSentences: 3,
         },
       });
       setShowAdvancedSettings(false);
@@ -899,9 +901,9 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
                 {[
                   { label: "Sentence Field *",      field: "sentenceField" },
                   { label: "Pronunciation Field",   field: "pronunciationField" },
-                  { label: "Meaning Field",         field: "meaningField" },
-                  { label: "Audio Field",      field: "audioField" },
-                  { label: "Image Field",      field: "imageField" },
+                  { label: "Translation Field",     field: "meaningField" },
+                  { label: "Audio Field",           field: "audioField" },
+                  { label: "Image Field",           field: "imageField" },
                 ].map(({ label, field }) => {
                   const fields = examplesFields.length > 0 ? examplesFields : availableFields;
                   return (
@@ -922,6 +924,26 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
                     </div>
                   );
                 })}
+              </div>
+
+              {/* Sentences per word */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                    Sentences per word (practice)
+                  </p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                    How many sentences to fetch per word in sentence exercises (1–5)
+                  </p>
+                </div>
+                <input
+                  type="number"
+                  min={1}
+                  max={5}
+                  value={formData.examples.maxSentences ?? 3}
+                  onChange={(e) => handleExamplesChange("maxSentences", Math.max(1, Math.min(5, parseInt(e.target.value) || 3)))}
+                  className="w-16 px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm text-center"
+                />
               </div>
             </div>
           )}
