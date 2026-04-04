@@ -161,9 +161,6 @@ const HelpPage = () => {
 
       </div>
 
-      <p className="mt-8 text-xs text-center text-gray-400 dark:text-gray-600">
-        Screenshots go in <code>public/screenshots/</code>. Update the <code>src</code> props in <code>src/pages/HelpPage.jsx</code>.
-      </p>
     </div>
   );
 };

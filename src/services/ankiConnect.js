@@ -78,7 +78,6 @@ class AnkiConnectService {
    * @throws {Error} If HTTP request fails or AnkiConnect returns an error
    */
   async makeRequest(action, params = {}) {
-    const requestParams = Object.keys(params).length === 0 ? {} : params;
     const url = this.getUrl();
     const token = dataService.getSetting("ankiConnectToken", "");
 
@@ -86,7 +85,7 @@ class AnkiConnectService {
     const requestBody = {
       action,
       version: 6, // AnkiConnect API version
-      params: requestParams,
+      params,
     };
 
     // Add API key if configured (for security)
@@ -174,17 +173,6 @@ class AnkiConnectService {
   }
 
   /**
-   * Get all model names (alias for getNoteTypes)
-   *
-   * Provided for compatibility with AnkiConnect API terminology.
-   *
-   * @returns {Promise<string[]>} Array of model names
-   */
-  async getModelNames() {
-    return await this.getNoteTypes();
-  }
-
-  /**
    * Get field names for a specific note type
    *
    * Fields are the data points in a note (e.g., "Front", "Back", "Audio").
@@ -197,18 +185,6 @@ class AnkiConnectService {
     return await this.makeRequest("modelFieldNames", {
       modelName: noteTypeName,
     });
-  }
-
-  /**
-   * Get model field names (alias for getFieldNames)
-   *
-   * Provided for compatibility with AnkiConnect API terminology.
-   *
-   * @param {string} modelName - Model name
-   * @returns {Promise<string[]>} Array of field names
-   */
-  async getModelFieldNames(modelName) {
-    return await this.getFieldNames(modelName);
   }
 
   /**
@@ -272,33 +248,6 @@ class AnkiConnectService {
       return [];
     }
     return await this.makeRequest("cardsInfo", { cards: cardIds });
-  }
-
-  /**
-   * Enhanced query method that returns note data directly
-   *
-   * Convenience method that combines findNotes() + getNotesInfo().
-   * Useful when you want note data immediately without two separate calls.
-   *
-   * @param {string} query - Anki search query
-   * @param {number} limit - Maximum number of notes to return (0 = no limit)
-   * @returns {Promise<Object[]>} Array of note objects (limited)
-   * @throws {Error} If request fails
-   */
-  async findNotesWithQuery(query, limit = 40) {
-    // Find note IDs first
-    const noteIds = await this.findNotes(query);
-
-    if (!noteIds || noteIds.length === 0) {
-      return [];
-    }
-
-    // Apply limit if specified
-    const limitedNoteIds =
-      limit > 0 && noteIds.length > limit ? noteIds.slice(0, limit) : noteIds;
-
-    // Get detailed note information
-    return await this.getNotesInfo(limitedNoteIds);
   }
 
   /**

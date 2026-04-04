@@ -486,7 +486,7 @@ class DataService {
    */
   resetAll() {
     this.data = { ...DEFAULT_APP_DATA };
-    localStorage.removeItem("anki-games-data");
+    localStorage.removeItem(STORAGE_KEY);
     this.notifyListeners();
   }
 }

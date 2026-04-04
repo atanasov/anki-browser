@@ -335,7 +335,7 @@ const NoteCard = ({ note }) => {
   const backFontClass = getAdaptiveFontClass(fontSizeClass, parsedBack.textHtml);
 
   return (
-    <article className={`card-container shrink-0 ${editMode ? "cursor-pointer" : "cursor-pointer"}`}>
+    <article className="card-container shrink-0 cursor-pointer">
       <div
         ref={cardRef}
         className={`${cardDimensionClasses} relative bg-white dark:bg-gray-800 rounded-xl shadow-lg transition-all duration-300 border overflow-hidden ${

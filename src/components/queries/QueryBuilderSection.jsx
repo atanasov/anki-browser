@@ -23,7 +23,6 @@ const QueryBuilderSection = ({
     if (!rawQuery) { setSelectedFields([]); return; }
     const matches = rawQuery.match(/(\w+):\*/g) ?? [];
     setSelectedFields(matches.map((m) => m.replace(":*", "")));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawQuery]);
 
   // Rebuild query from deck + noteType + field selections

@@ -183,21 +183,19 @@ const CardBrowser = () => {
     }
     if (shouldReset) {
       setPagination((p) => ({ ...p, currentPage: 1 }));
-      updateSettings({ currentPage: 1 });
     }
 
     fetchNotes(page, pagination.pageSize);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeViewId, fetchNotes, pagination.currentPage, pagination.pageSize, updateSettings, setSearchQuery, weakFilter, activeFilters]);
+  }, [activeViewId, fetchNotes, pagination.currentPage, pagination.pageSize, setSearchQuery, weakFilter, activeFilters]);
 
   const handlePageChange = (newPage) => {
     setPagination((prev) => ({ ...prev, currentPage: newPage }));
-    updateSettings({ currentPage: newPage });
   };
 
   const handlePageSizeChange = (newPageSize) => {
     setPagination((prev) => ({ ...prev, pageSize: newPageSize, currentPage: 1 }));
-    updateSettings({ cardsPerPage: newPageSize, currentPage: 1 });
+    updateSettings({ cardsPerPage: newPageSize });
   };
 
   const currentQuery = buildQuery();

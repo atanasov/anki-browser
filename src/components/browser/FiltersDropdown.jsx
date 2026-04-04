@@ -61,7 +61,7 @@ const FiltersDropdown = () => {
   // Fetch all Anki tags once when panel first opens
   useEffect(() => {
     if (!isOpen || allTags.length > 0) return;
-    ankiConnect.makeRequest("getTags", {}).then((tags) => setAllTags(tags ?? [])).catch(() => {});
+    ankiConnect.getTags().then((tags) => setAllTags(tags ?? [])).catch(() => {});
   }, [isOpen, allTags.length]);
 
   const suggestions = tagInput.trim()

@@ -17,7 +17,14 @@ export const adaptiveFont = (text, maxIndex = 4) => {
   return FONT_SIZES[Math.max(0, maxIndex - step)];
 };
 
-export const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
+export const shuffle = (arr) => {
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+};
 
 const MIME_TYPES = { mp3: "audio/mpeg", wav: "audio/wav", ogg: "audio/ogg", aac: "audio/aac", m4a: "audio/mp4" };
 

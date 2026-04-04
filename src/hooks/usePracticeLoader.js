@@ -168,7 +168,7 @@ export const usePracticeLoader = ({ view, noteIds, notes, weakFilter, selectedTy
       setLoading(false);
       setLoadingStatus("");
     }
-  }, [view, noteIds, notes, weakFilter, selectedTypes]);
+  }, [view, noteIds, weakFilter, selectedTypes]);
 
   const getWeakCategories = useCallback(() => {
     if (!weakFilter || !notes?.length) return new Set();

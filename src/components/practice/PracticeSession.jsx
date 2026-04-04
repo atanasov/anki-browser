@@ -393,7 +393,7 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [phase, drillPairs, isSelfRate, revealed, isAnswered, selfRate, advance, session, q, saveSelection]);
+  }, [phase, drillPairs, isSelfRate, revealed, isAnswered, selfRate, advance, reveal, session, q, saveSelection]);
 
   if (drillPairs) {
     return <PairDrill pairs={drillPairs} onFinish={() => setDrillPairs(null)} onClose={onClose} />;

@@ -5,6 +5,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import useStore from "../../store";
+import ConfirmDialog from "../common/ConfirmDialog";
 
 const ViewSelector = ({
   onViewChange,
@@ -21,6 +22,7 @@ const ViewSelector = ({
   const deleteView = useStore((state) => state.deleteView);
 
   const [isOpen, setIsOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null); // view to delete
   const dropdownRef = useRef(null);
 
   // Close dropdown when clicking outside
@@ -47,18 +49,15 @@ const ViewSelector = ({
 
   const handleDeleteView = (e, view) => {
     e.stopPropagation();
+    setIsOpen(false);
+    setConfirmDelete(view);
+  };
 
-    if (
-      window.confirm(
-        `Are you sure you want to delete the view "${view.name}"? This cannot be undone.`
-      )
-    ) {
-      deleteView(view.id);
-
-      if (onDeleteView) {
-        onDeleteView(view.id);
-      }
-    }
+  const handleConfirmDelete = () => {
+    if (!confirmDelete) return;
+    deleteView(confirmDelete.id);
+    if (onDeleteView) onDeleteView(confirmDelete.id);
+    setConfirmDelete(null);
   };
 
   const getActiveViewName = () => {
@@ -231,6 +230,16 @@ const ViewSelector = ({
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title="Delete View"
+        message={`Are you sure you want to delete "${confirmDelete?.name}"? This cannot be undone.`}
+        confirmText="Delete"
+        variant="danger"
+      />
     </div>
   );
 };

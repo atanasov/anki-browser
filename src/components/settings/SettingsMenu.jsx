@@ -71,8 +71,7 @@ const SettingsMenu = () => {
   };
 
   const saveAnkiSettings = () => {
-    dataService.setAnkiConnectUrl(ankiUrl);
-    dataService.setAnkiConnectToken(ankiToken);
+    dataService.updateSettings({ ankiConnectUrl: ankiUrl, ankiConnectToken: ankiToken });
     setConnStatus({ ok: true, msg: "Saved!" });
     setTimeout(() => setConnStatus(null), 2000);
   };

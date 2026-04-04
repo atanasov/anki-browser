@@ -52,10 +52,8 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
   const [decks, setDecks] = useState([]);
   const [noteTypes, setNoteTypes] = useState([]);
   const [availableFields, setAvailableFields] = useState([]);
-  const [tags, setTags] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingFields, setIsLoadingFields] = useState(false);
-  const [isLoadingTags, setIsLoadingTags] = useState(false);
   const [error, setError] = useState("");
 
   // Field selection state
@@ -86,13 +84,6 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
       loadFields(formData.noteType);
     }
   }, [formData.noteType]);
-
-  // Load tags when deck or note type changes
-  useEffect(() => {
-    if (formData.deck || formData.noteType) {
-      loadTags();
-    }
-  }, [formData.deck, formData.noteType]);
 
   // Pre-populate raw query when Advanced Settings is opened for the first time
   useEffect(() => {
@@ -200,8 +191,7 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
           enabled: false,
           deck: "",
           noteType: "",
-          keyField: "",
-          deckKeyField: "",
+          wordField: "",
           sentenceField: "",
           pronunciationField: "",
           meaningField: "",
@@ -246,19 +236,6 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
       setAvailableFields([]);
     } finally {
       setIsLoadingFields(false);
-    }
-  };
-
-  const loadTags = async () => {
-    try {
-      setIsLoadingTags(true);
-      const allTags = await ankiConnect.getTags();
-      setTags(allTags);
-    } catch (err) {
-      logger.error("Failed to load tags:", err);
-      setTags([]);
-    } finally {
-      setIsLoadingTags(false);
     }
   };
 
@@ -648,8 +625,6 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
                   selectedNoteType={formData.noteType}
                   noteTypeFields={availableFields}
                   isLoadingFields={isLoadingFields}
-                  tags={tags}
-                  isLoadingTags={isLoadingTags}
                 />
               </div>
             )}
