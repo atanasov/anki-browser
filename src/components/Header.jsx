@@ -12,6 +12,7 @@ import ViewEditorModal from "./views/ViewEditorModal";
 import DisplayControl from "./common/DisplayControl";
 import SettingsMenu from "./settings/SettingsMenu";
 import SavedWordsPanel from "./common/SavedWordsPanel";
+import FiltersDropdown from "./browser/FiltersDropdown";
 import useStore from "../store";
 
 const Header = () => {
@@ -109,6 +110,7 @@ const Header = () => {
                         ⚠ Weak ({weakCount})
                       </button>
                     )}
+                    <FiltersDropdown />
                     <button
                       onClick={toggleEditMode}
                       className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${

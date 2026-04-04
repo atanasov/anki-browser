@@ -20,6 +20,12 @@ const useStore = create((set) => ({
   currentPageNoteIds: [], // note IDs currently visible on the card browser page
   weakFilter: false, // when true, appends tag:weak* to the query
   weakCount: 0,      // number of weak cards in the current view (fetched after sessions / view switch)
+  activeFilters: {   // temporary filters, reset on view switch
+    flag: null,      // null | 1..7 — single flag filter
+    statuses: [],    // ["is:suspended", "is:new", ...] — multi-select
+    tags: [],        // ["HSK4", ...] — multi-select
+    savedWords: false, // when true, restrict to cards matching saved words list
+  },
 
   // Sync method — preserves session state that isn't in dataService
   sync: () =>
@@ -29,6 +35,7 @@ const useStore = create((set) => ({
       practiceMode: state.practiceMode,
       selectedNoteIds: state.selectedNoteIds,
       searchQuery: state.searchQuery,
+      activeFilters: state.activeFilters,
     })),
 
   // Settings
@@ -94,11 +101,40 @@ const useStore = create((set) => ({
         searchQuery: "",
         weakFilter: false,
         weakCount: 0,
+        activeFilters: { flag: null, statuses: [], tags: [], savedWords: false },
       });
     return success;
   },
 
   setSearchQuery: (q) => set({ searchQuery: q }),
+
+  // Active filters (session-only, reset on view switch)
+  setFlagFilter: (flag) =>
+    set((state) => ({ activeFilters: { ...state.activeFilters, flag } })),
+  toggleStatusFilter: (status) =>
+    set((state) => ({
+      activeFilters: {
+        ...state.activeFilters,
+        statuses: state.activeFilters.statuses.includes(status)
+          ? state.activeFilters.statuses.filter((s) => s !== status)
+          : [...state.activeFilters.statuses, status],
+      },
+    })),
+  toggleTagFilter: (tag) =>
+    set((state) => ({
+      activeFilters: {
+        ...state.activeFilters,
+        tags: state.activeFilters.tags.includes(tag)
+          ? state.activeFilters.tags.filter((t) => t !== tag)
+          : [...state.activeFilters.tags, tag],
+      },
+    })),
+  toggleSavedWordsFilter: () =>
+    set((state) => ({
+      activeFilters: { ...state.activeFilters, savedWords: !state.activeFilters.savedWords },
+    })),
+  clearFilters: () =>
+    set({ activeFilters: { flag: null, statuses: [], tags: [], savedWords: false } }),
   setCurrentPageNoteIds: (ids) => set({ currentPageNoteIds: ids }),
   toggleWeakFilter: () => set((state) => ({ weakFilter: !state.weakFilter })),
   setWeakCount: (count) => set({ weakCount: count }),

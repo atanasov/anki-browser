@@ -26,6 +26,8 @@ const CardBrowser = () => {
   const setCurrentPageNoteIds = useStore((state) => state.setCurrentPageNoteIds);
   const weakFilter = useStore((state) => state.weakFilter);
   const setWeakCount = useStore((state) => state.setWeakCount);
+  const activeFilters = useStore((state) => state.activeFilters);
+  const savedWords = useStore((state) => state.savedWords ?? []);
 
   const [isCreateViewModalOpen, setIsCreateViewModalOpen] = useState(false);
   const [isPracticeSetupOpen, setIsPracticeSetupOpen] = useState(false);
@@ -56,18 +58,31 @@ const CardBrowser = () => {
     if (!base) return "";
 
     const prefix = dataService.getSetting("practiceTagPrefix", "weak");
-    const filtered = weakFilter ? `${base} tag:${prefix}*` : base;
+    const parts = [base];
+
+    if (weakFilter) parts.push(`tag:${prefix}*`);
+    if (activeFilters.flag !== null) parts.push(`flag:${activeFilters.flag}`);
+    if (activeFilters.statuses.length > 0)
+      parts.push(activeFilters.statuses.length === 1
+        ? activeFilters.statuses[0]
+        : `(${activeFilters.statuses.join(" OR ")})`);
+    if (activeFilters.tags.length > 0)
+      parts.push(activeFilters.tags.length === 1
+        ? `tag:"${activeFilters.tags[0]}"`
+        : `(${activeFilters.tags.map((t) => `tag:"${t}"`).join(" OR ")})`);
+    if (activeFilters.savedWords && savedWords.length > 0)
+      parts.push(`(${savedWords.map((w) => `"${w.text}"`).join(" OR ")})`);
 
     const term = searchQuery.trim();
-    if (!term) return filtered;
-
-    const fields = [...new Set([...(activeView.frontFields || []), ...(activeView.backFields || [])])];
-    if (fields.length > 0) {
-      const fieldQuery = fields.map((f) => `${f}:*${term}*`).join(" OR ");
-      return `${filtered} (${fieldQuery})`;
+    if (term) {
+      const fields = [...new Set([...(activeView.frontFields || []), ...(activeView.backFields || [])])];
+      parts.push(fields.length > 0
+        ? `(${fields.map((f) => `${f}:*${term}*`).join(" OR ")})`
+        : term);
     }
-    return `${filtered} ${term}`;
-  }, [activeView, searchQuery, weakFilter]);
+
+    return parts.join(" ");
+  }, [activeView, searchQuery, weakFilter, activeFilters, savedWords]);
 
   const fetchWeakCount = useCallback(async () => {
     const base = activeView?.rawQuery?.trim();
@@ -147,8 +162,8 @@ const CardBrowser = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeViewId]);
 
-  // Detect view switches, search changes, or weak filter toggle — reset to page 1
-  const prevContextRef = useRef({ viewId: null, searchQuery: "", weakFilter: false });
+  // Detect view switches, search changes, weak filter, or active filter changes — reset to page 1
+  const prevContextRef = useRef({ viewId: null, searchQuery: "", weakFilter: false, activeFilters: null });
 
   useEffect(() => {
     if (!activeView) return;
@@ -157,9 +172,10 @@ const CardBrowser = () => {
     const isViewSwitch = prev.viewId !== activeViewId;
     const isSearchChange = prev.searchQuery !== searchQuery;
     const isWeakFilterChange = prev.weakFilter !== weakFilter;
-    prevContextRef.current = { viewId: activeViewId, searchQuery, weakFilter };
+    const isFilterChange = JSON.stringify(prev.activeFilters) !== JSON.stringify(activeFilters);
+    prevContextRef.current = { viewId: activeViewId, searchQuery, weakFilter, activeFilters };
 
-    const shouldReset = isViewSwitch || isSearchChange || isWeakFilterChange;
+    const shouldReset = isViewSwitch || isSearchChange || isWeakFilterChange || isFilterChange;
     const page = shouldReset ? 1 : pagination.currentPage;
     if (isViewSwitch) {
       setSearchQuery("");
@@ -172,7 +188,7 @@ const CardBrowser = () => {
 
     fetchNotes(page, pagination.pageSize);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeViewId, fetchNotes, pagination.currentPage, pagination.pageSize, updateSettings, setSearchQuery, weakFilter]);
+  }, [activeViewId, fetchNotes, pagination.currentPage, pagination.pageSize, updateSettings, setSearchQuery, weakFilter, activeFilters]);
 
   const handlePageChange = (newPage) => {
     setPagination((prev) => ({ ...prev, currentPage: newPage }));
