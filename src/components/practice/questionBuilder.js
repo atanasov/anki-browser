@@ -26,11 +26,11 @@ export const TYPE_TO_TAG_CATEGORY = {
   [TYPES.MEANING_WORD]:           "meaning",
   [TYPES.WORD_PRONUNCIATION]:     "pronunciation",
   [TYPES.PRONUNCIATION_WORD]:     "pronunciation",
-  [TYPES.SENTENCE_CLOZE]:         "recognition",
+  [TYPES.SENTENCE_CLOZE]:         "usage",
   [TYPES.TYPE_MEANING]:           "typing",
   [TYPES.TYPE_WORD]:              "typing",
-  [TYPES.SENTENCE_TRANSLATION]:   "recognition",
-  [TYPES.SENTENCE_DICTATION]:     "listening",
+  [TYPES.SENTENCE_TRANSLATION]:   "typing",
+  [TYPES.SENTENCE_DICTATION]:     "typing",
 };
 
 export const EXERCISE_LABELS = {
@@ -112,8 +112,10 @@ export const buildQuestion = (note, pool, type, view) => {
   const sentenceFieldName = sw.sentenceField || view?.examples?.sentenceField || "";
   const sentence      = sentenceFieldName ? clean(note.fields?.[sentenceFieldName]) : "";
   const audioRaw      = sw.audioField ? extractFieldValue(note.fields?.[sw.audioField]) : "";
-  const sentenceTranslation = sw.sentenceTranslationField
-    ? clean(note.fields?.[sw.sentenceTranslationField]) : "";
+  const sentenceTranslation    = sw.sentenceTranslationField
+    ? clean(note.fields?.[sw.sentenceTranslationField])    : "";
+  const sentencePronunciation  = sw.sentencePronunciationField
+    ? clean(note.fields?.[sw.sentencePronunciationField])  : "";
   const sentences = parseSentences(extractFieldValue(note.fields?.[sentenceFieldName] ?? ""));
 
   if (type === TYPES.TYPE_MEANING) {
@@ -122,7 +124,7 @@ export const buildQuestion = (note, pool, type, view) => {
       noteId: note.noteId, type: TYPES.TYPE_MEANING,
       prompt: word, promptLabel: PROMPT_LABELS[TYPES.TYPE_MEANING],
       answer: meaning, options: [], correctIndex: -1,
-      word, pronunciation, meaning, sentence, audioRaw, sentences, sentenceTranslation,
+      word, pronunciation, meaning, sentence, audioRaw, sentences, sentenceTranslation, sentencePronunciation,
       tags: note.tags || [], cardIds: note.cards || [],
     };
   }
@@ -133,7 +135,7 @@ export const buildQuestion = (note, pool, type, view) => {
       noteId: note.noteId, type: TYPES.TYPE_WORD,
       prompt: meaning, promptLabel: PROMPT_LABELS[TYPES.TYPE_WORD],
       answer: word, options: [], correctIndex: -1,
-      word, pronunciation, meaning, sentence, audioRaw, sentences, sentenceTranslation,
+      word, pronunciation, meaning, sentence, audioRaw, sentences, sentenceTranslation, sentencePronunciation,
       tags: note.tags || [], cardIds: note.cards || [],
     };
   }
@@ -219,7 +221,7 @@ export const buildQuestion = (note, pool, type, view) => {
   return {
     noteId: note.noteId, type, prompt, promptLabel: PROMPT_LABELS[type],
     answer, options, correctIndex: options.findIndex((o) => o.text === answer),
-    word, pronunciation, meaning, sentence, audioRaw, sentences, sentenceTranslation,
+    word, pronunciation, meaning, sentence, audioRaw, sentences, sentenceTranslation, sentencePronunciation,
     tags: note.tags || [], cardIds: note.cards || [],
   };
 };
@@ -235,10 +237,14 @@ export const buildQuestion = (note, pool, type, view) => {
  */
 export const buildSentenceQuestion = (sentenceNote, vocabNote, type, view) => {
   const ex = view?.examples || {};
-  const sentence    = ex.sentenceField    ? clean(sentenceNote.fields?.[ex.sentenceField])  : "";
-  const translation = ex.meaningField     ? clean(sentenceNote.fields?.[ex.meaningField])   : "";
-  const audioRaw    = ex.audioField       ? extractFieldValue(sentenceNote.fields?.[ex.audioField]) : "";
-  const word        = ex.wordField        ? clean(vocabNote.fields?.[ex.wordField])          : "";
+  const sw = view?.similarWords || {};
+  const sentence             = ex.sentenceField     ? clean(sentenceNote.fields?.[ex.sentenceField])     : "";
+  const sentencePronunciation = ex.pronunciationField ? clean(sentenceNote.fields?.[ex.pronunciationField]) : "";
+  const translation          = ex.meaningField      ? clean(sentenceNote.fields?.[ex.meaningField])      : "";
+  const audioRaw             = ex.audioField        ? extractFieldValue(sentenceNote.fields?.[ex.audioField]) : "";
+  const word                 = ex.wordField         ? clean(vocabNote.fields?.[ex.wordField])            : "";
+  const vocabPronunciation   = sw.pronunciationField ? clean(vocabNote.fields?.[sw.pronunciationField])  : "";
+  const vocabMeaning         = sw.translationField  ? clean(vocabNote.fields?.[sw.translationField])     : "";
 
   if (type === TYPES.SENTENCE_TRANSLATION) {
     if (!sentence || !translation) return null;
@@ -246,8 +252,8 @@ export const buildSentenceQuestion = (sentenceNote, vocabNote, type, view) => {
       noteId: vocabNote.noteId, type,
       prompt: sentence, promptLabel: PROMPT_LABELS[type],
       answer: translation, options: [], correctIndex: -1,
-      audioRaw, word, pronunciation: "", meaning: translation,
-      sentence, translation, sentences: [], sentenceTranslation: translation,
+      audioRaw, word, pronunciation: vocabPronunciation, meaning: vocabMeaning,
+      sentence, sentencePronunciation, translation, sentences: [], sentenceTranslation: translation,
       tags: vocabNote.tags || [], cardIds: vocabNote.cards || [],
     };
   }
@@ -258,8 +264,8 @@ export const buildSentenceQuestion = (sentenceNote, vocabNote, type, view) => {
       noteId: vocabNote.noteId, type,
       prompt: "", promptLabel: PROMPT_LABELS[type],
       answer: sentence, options: [], correctIndex: -1,
-      audioRaw, word, pronunciation: "", meaning: sentence,
-      sentence, translation, sentences: [], sentenceTranslation: translation,
+      audioRaw, word, pronunciation: vocabPronunciation, meaning: vocabMeaning,
+      sentence, sentencePronunciation, translation, sentences: [], sentenceTranslation: translation,
       tags: vocabNote.tags || [], cardIds: vocabNote.cards || [],
     };
   }

@@ -7,14 +7,12 @@
 
 import { useState, useEffect } from "react";
 import Modal from "../common/Modal";
-import ankiConnect from "../../services/ankiConnect";
-import { extractFieldValue } from "../../utils/fieldHelpers";
 import {
-  TYPES,
   getAvailableTypes,
   EXERCISE_LABELS,
 } from "../../hooks/usePracticeSession";
-import logger from "../../utils/logger";
+import { TYPE_TO_TAG_CATEGORY } from "./questionBuilder";
+import { usePracticeLoader } from "../../hooks/usePracticeLoader";
 
 const Toggle = ({ value, onChange, label }) => (
   <button
@@ -35,127 +33,47 @@ const Toggle = ({ value, onChange, label }) => (
   </button>
 );
 
-const PracticeSetupModal = ({ isOpen, onClose, onStart, view, noteIds }) => {
+const PracticeSetupModal = ({ isOpen, onClose, onStart, view, noteIds, notes, weakFilter }) => {
   const [includeSimilar, setIncludeSimilar] = useState(true);
   const [studiedOnly,    setStudiedOnly]    = useState(true);
   const [addConfused,    setAddConfused]    = useState(true);
   const [selectedTypes,  setSelectedTypes]  = useState([]);
-  const [loading,        setLoading]        = useState(false);
-  const [loadingStatus,  setLoadingStatus]  = useState("");
-  const [error,          setError]          = useState(null);
+  const [weakCategories, setWeakCategories] = useState(new Set());
 
-  const hasSimilarWordsConfig = view?.similarWords?.enabled && view?.similarWords?.wordField;
-  const availableTypes        = getAvailableTypes(view);
+  const availableTypes = getAvailableTypes(view);
+
+  const { load, loading, loadingStatus, error, setError, getWeakCategories } = usePracticeLoader({
+    view, noteIds, notes, weakFilter, selectedTypes,
+  });
 
   const toggleType = (t) => setSelectedTypes((prev) =>
     prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]
   );
 
-  // Reset on open
+  // Reset on open — pre-select only relevant types when weak filter is active
   useEffect(() => {
     if (!isOpen) return;
-    setSelectedTypes(availableTypes);
     setError(null);
-    setLoadingStatus("");
+
+    const cats = getWeakCategories();
+    setWeakCategories(cats);
+
+    if (cats.size > 0) {
+      const suggested = availableTypes.filter((t) => {
+        const cat = TYPE_TO_TAG_CATEGORY[t];
+        return cat && cats.has(cat);
+      });
+      setSelectedTypes(suggested.length > 0 ? suggested : availableTypes);
+    } else {
+      setSelectedTypes(availableTypes);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  const handleStart = async () => {
-    setLoading(true);
-    setError(null);
+  const handleStart = () =>
+    load({ includeSimilar, studiedOnly, addConfused, onSuccess: onStart });
 
-    try {
-      // ── Step 1: fetch base notes ──────────────────────────────────────
-      setLoadingStatus("Loading cards…");
-      const baseIds = noteIds;
-
-      if (!baseIds?.length) {
-        setError("No cards found. Check your query.");
-        setLoading(false);
-        return;
-      }
-
-      const baseNotes = await ankiConnect.getNotesInfo(baseIds);
-
-      // ── Step 2: expand with similar words ────────────────────────────
-      let allNotes = baseNotes;
-
-      if (includeSimilar && hasSimilarWordsConfig) {
-        setLoadingStatus("Finding similar words…");
-        const sw          = view.similarWords;
-        const searchDeck  = sw.deck || view.deck;
-        const searchNote  = sw.noteType || view.noteType;
-        const knownIds    = new Set(baseIds.map(String));
-        const newIds      = new Set();
-
-        for (const note of baseNotes) {
-          const word = extractFieldValue(note.fields?.[sw.wordField])
-            .replace(/<[^>]*>/g, "")
-            .trim();
-          if (!word) continue;
-
-          for (const char of [...new Set([...word])]) {
-            let q = `deck:"${searchDeck}" note:"${searchNote}" ${sw.wordField}:*${char}*`;
-            if (studiedOnly) q += " (is:review or is:learn)";
-
-            try {
-              const ids = await ankiConnect.findNotes(q);
-              ids.forEach((id) => {
-                if (!knownIds.has(String(id))) newIds.add(id);
-              });
-            } catch {
-              // Skip failed character queries silently
-            }
-          }
-        }
-
-        if (newIds.size > 0) {
-          setLoadingStatus(`Loading ${newIds.size} similar words…`);
-          const extra = await ankiConnect.getNotesInfo([...newIds]);
-          allNotes = [...baseNotes, ...extra];
-        }
-      }
-
-      // ── Step 3: fetch sentence deck notes for sentence exercise types ──
-      let sentenceMap = null;
-      const SENTENCE_TYPES = [TYPES.SENTENCE_TRANSLATION, TYPES.SENTENCE_DICTATION];
-      const ex = view?.examples;
-
-      if (selectedTypes.some((t) => SENTENCE_TYPES.includes(t)) &&
-          ex?.enabled && ex?.deck && ex?.wordField && ex?.sentenceField) {
-        setLoadingStatus("Loading example sentences…");
-        sentenceMap = new Map();
-        const maxSentences = ex.maxSentences || 3;
-
-        for (const note of baseNotes) {
-          const word = extractFieldValue(note.fields?.[ex.wordField])
-            .replace(/<[^>]*>/g, "").trim();
-          if (!word) continue;
-
-          let query = `deck:"${ex.deck}" ${ex.sentenceField}:*${word}*`;
-          if (ex.noteType) query += ` note:"${ex.noteType}"`;
-
-          try {
-            const ids = await ankiConnect.findNotes(query);
-            if (ids.length > 0) {
-              const sentenceNotes = await ankiConnect.getNotesInfo(ids.slice(0, maxSentences));
-              if (sentenceNotes.length > 0) sentenceMap.set(note.noteId, sentenceNotes);
-            }
-          } catch {
-            // skip if fetch fails for this word
-          }
-        }
-      }
-
-      onStart({ baseNotes, pool: allNotes, exerciseType: selectedTypes, view, addConfused: includeSimilar && addConfused, sentenceMap });
-    } catch (err) {
-      logger.error("Practice setup failed:", err);
-      setError("Failed to load cards. Make sure Anki is running.");
-    } finally {
-      setLoading(false);
-      setLoadingStatus("");
-    }
-  };
+  const hasSimilarWordsConfig = view?.similarWords?.enabled && view?.similarWords?.wordField;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Practice" maxWidth="max-w-md">
@@ -184,11 +102,7 @@ const PracticeSetupModal = ({ isOpen, onClose, onStart, view, noteIds }) => {
                   Adds words sharing the same characters — great for contrast practice
                 </p>
               </div>
-              <Toggle
-                value={includeSimilar}
-                onChange={setIncludeSimilar}
-                label="Include similar words"
-              />
+              <Toggle value={includeSimilar} onChange={setIncludeSimilar} label="Include similar words" />
             </div>
 
             {includeSimilar && (
@@ -197,21 +111,13 @@ const PracticeSetupModal = ({ isOpen, onClose, onStart, view, noteIds }) => {
                   <span className="text-xs text-gray-500 dark:text-gray-400">
                     Studied cards only (is:review or is:learn)
                   </span>
-                  <Toggle
-                    value={studiedOnly}
-                    onChange={setStudiedOnly}
-                    label="Studied only"
-                  />
+                  <Toggle value={studiedOnly} onChange={setStudiedOnly} label="Studied only" />
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-500 dark:text-gray-400">
                     Add wrong picks to session
                   </span>
-                  <Toggle
-                    value={addConfused}
-                    onChange={setAddConfused}
-                    label="Add confused words"
-                  />
+                  <Toggle value={addConfused} onChange={setAddConfused} label="Add confused words" />
                 </div>
               </div>
             )}
@@ -222,9 +128,16 @@ const PracticeSetupModal = ({ isOpen, onClose, onStart, view, noteIds }) => {
         {availableTypes.length > 0 && (
           <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Exercise types
-              </p>
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Exercise types
+                </p>
+                {weakCategories.size > 0 && (
+                  <p className="text-xs text-red-500 dark:text-red-400 mt-0.5">
+                    Pre-selected for: {[...weakCategories].join(", ")}
+                  </p>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={() => setSelectedTypes(selectedTypes.length === availableTypes.length ? [] : availableTypes)}

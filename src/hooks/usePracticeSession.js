@@ -131,27 +131,33 @@ export const usePracticeSession = () => {
     const available = getAvailableTypes(view);
     if (available.length === 0) return;
 
-    const types = Array.isArray(exerciseType)
-      ? exerciseType.filter((t) => available.includes(t))
-      : exerciseType === "mixed" ? available : [exerciseType];
-    if (types.length === 0) return;
-
-    const regularTypes  = types.filter((t) => !SENTENCE_TYPES.includes(t));
-    const sentenceTypes = types.filter((t) => SENTENCE_TYPES.includes(t));
+    // Normalize exerciseType to a per-note resolver — Map mode uses per-card types,
+    // string/array mode broadcasts the same types to every note.
+    const getTypesForNote = (noteId) => {
+      if (exerciseType instanceof Map) return exerciseType.get(noteId) || [];
+      const types = Array.isArray(exerciseType)
+        ? exerciseType
+        : exerciseType === "mixed" ? available : [exerciseType];
+      return types.filter((t) => available.includes(t));
+    };
 
     const regularQs = shuffle(
       baseNotes.flatMap((note) =>
-        regularTypes.map((type) => buildQuestion(note, pool, type, view))
+        getTypesForNote(note.noteId)
+          .filter((t) => !SENTENCE_TYPES.includes(t))
+          .map((type) => buildQuestion(note, pool, type, view))
       )
     ).filter(Boolean);
 
-    const sentenceQs = (sentenceMap && sentenceTypes.length > 0)
+    const sentenceQs = sentenceMap
       ? shuffle(
           [...sentenceMap.entries()].flatMap(([vocabNoteId, sentenceNotes]) => {
             const vocabNote = baseNotes.find((n) => n.noteId === vocabNoteId);
             if (!vocabNote) return [];
             return sentenceNotes.flatMap((sNote) =>
-              sentenceTypes.map((type) => buildSentenceQuestion(sNote, vocabNote, type, view))
+              getTypesForNote(vocabNoteId)
+                .filter((t) => SENTENCE_TYPES.includes(t))
+                .map((type) => buildSentenceQuestion(sNote, vocabNote, type, view))
             );
           })
         ).filter(Boolean)

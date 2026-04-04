@@ -35,7 +35,20 @@ async function loadMedia(raw, extractFn, mime) {
   return b64 ? createMediaDataUrl(b64, mime(filename)) : null;
 }
 
-const SentenceRow = ({ note, config }) => {
+const ToggleChip = ({ label, active, onToggle }) => (
+  <button
+    onClick={onToggle}
+    className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${
+      active
+        ? "bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300"
+        : "border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-500"
+    }`}
+  >
+    {label}
+  </button>
+);
+
+const SentenceRow = ({ note, config, showPinyin, showTranslation }) => {
   const [audioSrc, setAudioSrc] = useState(null);
   const [imageSrc, setImageSrc] = useState(null);
   const audioRef = useRef(null);
@@ -80,11 +93,11 @@ const SentenceRow = ({ note, config }) => {
         <p className="text-5xl font-medium text-gray-900 dark:text-gray-100 leading-snug">
           {sentence}
         </p>
-        {pronunciation && (
+        {showPinyin && pronunciation && (
           <p className="text-3xl text-blue-600 dark:text-blue-400 mt-1">{pronunciation}</p>
         )}
-        {meaning && (
-          <p className="text-3xl text-gray-500 dark:text-gray-400 mt-0.5 truncate">{meaning}</p>
+        {showTranslation && meaning && (
+          <p className="text-3xl text-gray-500 dark:text-gray-400 mt-0.5 break-words">{meaning}</p>
         )}
       </div>
 
@@ -108,9 +121,11 @@ const SentenceRow = ({ note, config }) => {
 };
 
 const ExamplesModal = ({ isOpen, onClose, note, config }) => {
-  const [results, setResults] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [results,         setResults]         = useState([]);
+  const [loading,         setLoading]         = useState(false);
+  const [error,           setError]           = useState(null);
+  const [showPinyin,      setShowPinyin]      = useState(false);
+  const [showTranslation, setShowTranslation] = useState(false);
 
   const word = stripHtml(extractFieldValue(note?.fields?.[config?.wordField])).trim();
 
@@ -136,8 +151,18 @@ const ExamplesModal = ({ isOpen, onClose, note, config }) => {
     fetchExamples();
   }, [isOpen, word, fetchExamples]);
 
+  const hasPinyin      = !!config?.pronunciationField;
+  const hasTranslation = !!config?.meaningField;
+
+  const headerActions = (hasPinyin || hasTranslation) ? (
+    <>
+      {hasPinyin      && <ToggleChip label="Pinyin"       active={showPinyin}      onToggle={() => setShowPinyin((v) => !v)} />}
+      {hasTranslation && <ToggleChip label="Translation"  active={showTranslation} onToggle={() => setShowTranslation((v) => !v)} />}
+    </>
+  ) : null;
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Examples: ${word}`} maxWidth="max-w-4xl">
+    <Modal isOpen={isOpen} onClose={onClose} title={`Examples: ${word}`} maxWidth="max-w-4xl" headerActions={headerActions}>
       <div className="space-y-2">
         {error && (
           <div className="p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg text-red-700 dark:text-red-300 text-sm">
@@ -166,7 +191,7 @@ const ExamplesModal = ({ isOpen, onClose, note, config }) => {
               {results.length} example{results.length !== 1 ? "s" : ""}
             </p>
             {results.map((n) => (
-              <SentenceRow key={n.noteId} note={n} config={config} />
+              <SentenceRow key={n.noteId} note={n} config={config} showPinyin={showPinyin} showTranslation={showTranslation} />
             ))}
           </div>
         )}

@@ -18,6 +18,8 @@ const useStore = create((set) => ({
   selectedNoteIds: [],
   searchQuery: "", // temporary text search, cleared on view switch
   currentPageNoteIds: [], // note IDs currently visible on the card browser page
+  weakFilter: false, // when true, appends tag:weak* to the query
+  weakCount: 0,      // number of weak cards in the current view (fetched after sessions / view switch)
 
   // Sync method — preserves session state that isn't in dataService
   sync: () =>
@@ -90,12 +92,16 @@ const useStore = create((set) => ({
         practiceMode: false,
         selectedNoteIds: [],
         searchQuery: "",
+        weakFilter: false,
+        weakCount: 0,
       });
     return success;
   },
 
   setSearchQuery: (q) => set({ searchQuery: q }),
   setCurrentPageNoteIds: (ids) => set({ currentPageNoteIds: ids }),
+  toggleWeakFilter: () => set((state) => ({ weakFilter: !state.weakFilter })),
+  setWeakCount: (count) => set({ weakCount: count }),
 
   // Edit / practice mode
   toggleEditMode: () =>

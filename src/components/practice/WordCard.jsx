@@ -23,13 +23,6 @@ const VARIANTS = {
     word:    "text-gray-900 dark:text-gray-100",
     divider: "border-green-200 dark:border-green-800/60",
   },
-  reveal: {
-    border:  "border-green-400 dark:border-green-500",
-    bg:      "bg-green-50 dark:bg-green-900/25",
-    label:   "text-green-600 dark:text-green-400",
-    word:    "text-gray-900 dark:text-gray-100",
-    divider: "border-green-200 dark:border-green-800/60",
-  },
   wrong: {
     border:  "border-red-400 dark:border-red-500",
     bg:      "bg-red-50 dark:bg-red-900/25",
@@ -46,7 +39,7 @@ const WordCard = ({
   audioRaw, centered = false,
   fontMaxIndex = 4,
 }) => {
-  const v = VARIANTS[variant] ?? VARIANTS.neutral;
+  const v = VARIANTS[variant === "reveal" ? "correct" : variant] ?? VARIANTS.neutral;
   const align = centered ? "items-center text-center" : "items-start";
 
   return (
@@ -76,12 +69,12 @@ const WordCard = ({
       {sentences?.length > 0 && (
         <div className={`mt-1 text-gray-500 dark:text-gray-400 leading-relaxed border-t ${v.divider} pt-3 flex flex-col gap-2 ${centered ? "text-center" : ""}`}>
           {sentences.map((s, i) => (
-            <div key={i} className={adaptiveFont(s, Math.max(0, fontMaxIndex - 2))}>
+            <div key={i} className={`font-medium ${adaptiveFont(s, Math.max(0, fontMaxIndex - 1))}`}>
               <SentenceWithHighlight sentence={s} word={word} />
             </div>
           ))}
           {sentenceTranslation && (
-            <div className="text-sm text-gray-400 dark:text-gray-500 italic mt-0.5">
+            <div className="text-base text-gray-400 dark:text-gray-500 mt-0.5">
               {sentenceTranslation}
             </div>
           )}

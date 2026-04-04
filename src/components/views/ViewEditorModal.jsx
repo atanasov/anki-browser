@@ -150,6 +150,7 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
           pronunciationField: "",
           translationField: "",
           sentenceField: "",
+          sentencePronunciationField: "",
           sentenceTranslationField: "",
           audioField: "",
         },
@@ -750,6 +751,7 @@ const ViewEditorModal = ({ isOpen, onClose, viewToEdit = null }) => {
                 { label: "Pronunciation Field",         field: "pronunciationField" },
                 { label: "Translation Field",           field: "translationField" },
                 { label: "Sentence Field",              field: "sentenceField" },
+                { label: "Sentence Pronunciation Field", field: "sentencePronunciationField" },
                 { label: "Sentence Translation Field",  field: "sentenceTranslationField" },
                 { label: "Audio Field",                 field: "audioField" },
               ].length > 0 && (

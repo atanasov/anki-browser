@@ -3,7 +3,7 @@
  * Reusable modal/popup component for displaying content
  */
 
-const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-4xl' }) => {
+const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-4xl', headerActions }) => {
   if (!isOpen) return null;
 
   return (
@@ -20,15 +20,18 @@ const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-4xl' }) => 
           <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
             {title}
           </h3>
-          <button
+          <div className="flex items-center gap-3">
+            {headerActions}
+            <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
             aria-label="Close modal"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Content */}

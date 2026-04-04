@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SentenceWithHighlight } from "./SentenceHighlight";
 
 const EndScreen = ({ report, tagSummary = null, onRestart, onDrillPairs, onClose }) => {
   const [weakOnly, setWeakOnly] = useState(false);
@@ -71,9 +72,17 @@ const EndScreen = ({ report, tagSummary = null, onRestart, onDrillPairs, onClose
                   <span className="text-sm text-red-500 dark:text-red-400 font-semibold shrink-0 mt-1">{w.errors}✗</span>
                 </div>
                 <div className="flex flex-wrap gap-x-3 gap-y-0.5 mb-2">
-                  {w.pronunciation && <span className="text-base text-blue-600 dark:text-blue-400">{w.pronunciation}</span>}
-                  {w.meaning && <span className="text-base text-green-700 dark:text-green-400">{w.meaning}</span>}
+                  {w.pronunciation && <span className="text-lg text-blue-600 dark:text-blue-400 font-medium">{w.pronunciation}</span>}
+                  {w.meaning && <span className="text-lg text-green-700 dark:text-green-400">{w.meaning}</span>}
                 </div>
+                {w.sentences?.length > 0 && (
+                  <div className="mb-2 text-lg font-medium text-gray-700 dark:text-gray-300 leading-relaxed">
+                    <SentenceWithHighlight sentence={w.sentences[0]} word={w.word} />
+                    {w.sentenceTranslation && (
+                      <p className="text-base text-gray-400 dark:text-gray-500 mt-0.5 font-normal">{w.sentenceTranslation}</p>
+                    )}
+                  </div>
+                )}
                 {w.wrongPicks.length > 0 && (
                   <div className="flex flex-col gap-2 mt-2">
                     {w.wrongPicks.map((pick, j) => (
@@ -86,6 +95,11 @@ const EndScreen = ({ report, tagSummary = null, onRestart, onDrillPairs, onClose
                           {pick.pronunciation && <span className="text-sm text-blue-600 dark:text-blue-400">{pick.pronunciation}</span>}
                           {pick.meaning && <span className="text-sm text-gray-600 dark:text-gray-400">{pick.meaning}</span>}
                         </div>
+                        {pick.sentences?.length > 0 && (
+                          <p className="mt-1 text-sm font-medium text-gray-500 dark:text-gray-400 leading-relaxed pl-0.5">
+                            <SentenceWithHighlight sentence={pick.sentences[0]} word={pick.word} />
+                          </p>
+                        )}
                       </div>
                     ))}
                   </div>
