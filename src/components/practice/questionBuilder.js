@@ -26,11 +26,11 @@ export const TYPE_TO_TAG_CATEGORY = {
   [TYPES.MEANING_WORD]:           "meaning",
   [TYPES.WORD_PRONUNCIATION]:     "pronunciation",
   [TYPES.PRONUNCIATION_WORD]:     "pronunciation",
-  [TYPES.SENTENCE_CLOZE]:         "usage",
+  [TYPES.SENTENCE_CLOZE]:         "recognition",
   [TYPES.TYPE_MEANING]:           "typing",
   [TYPES.TYPE_WORD]:              "typing",
   [TYPES.SENTENCE_TRANSLATION]:   "typing",
-  [TYPES.SENTENCE_DICTATION]:     "typing",
+  [TYPES.SENTENCE_DICTATION]:     "listening",
 };
 
 export const EXERCISE_LABELS = {

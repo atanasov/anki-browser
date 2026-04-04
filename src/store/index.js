@@ -119,6 +119,21 @@ const useStore = create((set) => ({
   selectAllNotes: (noteIds) => set({ selectedNoteIds: noteIds }),
   clearSelection: () => set({ selectedNoteIds: [] }),
 
+  // Saved Words
+  addSavedWord: (text) => {
+    const entry = dataService.addSavedWord(text);
+    set({ savedWords: dataService.getSavedWords() });
+    return entry;
+  },
+  updateSavedWord: (id, updates) => {
+    dataService.updateSavedWord(id, updates);
+    set({ savedWords: dataService.getSavedWords() });
+  },
+  removeSavedWord: (id) => {
+    dataService.removeSavedWord(id);
+    set({ savedWords: dataService.getSavedWords() });
+  },
+
   // Utility
   exportData: () => dataService.exportData(),
   importData: (jsonString, overwrite) => {

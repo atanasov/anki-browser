@@ -11,6 +11,7 @@ import ViewSelector from "./views/ViewSelector";
 import ViewEditorModal from "./views/ViewEditorModal";
 import DisplayControl from "./common/DisplayControl";
 import SettingsMenu from "./settings/SettingsMenu";
+import SavedWordsPanel from "./common/SavedWordsPanel";
 import useStore from "../store";
 
 const Header = () => {
@@ -137,6 +138,7 @@ const Header = () => {
 
             {/* Right: controls */}
             <div className="flex items-center gap-1 shrink-0">
+              <SavedWordsPanel />
               <DisplayControl />
 
               <Dropdown

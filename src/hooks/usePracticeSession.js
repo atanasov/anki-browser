@@ -290,26 +290,63 @@ export const usePracticeSession = () => {
     return { score, total: results.length, confusedWords };
   }, [phase, results]);
 
-  // Update flags when session finishes
+  // Update flags + cleanup untouched weak tags when session finishes
   useEffect(() => {
     if (phase !== "finished") return;
-
-    const flagOutcomes = { red: 0, orange: 0, cleared: 0 };
-    for (const noteId of touchedNoteIdsRef.current) {
-      const tagState = tagStateRef.current[noteId] ?? {};
-      const maxLevel = Object.values(tagState).reduce((m, v) => Math.max(m, v), 0);
-      if (maxLevel >= 3) flagOutcomes.red++;
-      else if (maxLevel >= 1) flagOutcomes.orange++;
-      else flagOutcomes.cleared++;
+    if (!dataService.getSetting("autoPracticeTagging", true)) {
+      setTagSummary({ flagOutcomes: { red: 0, orange: 0, cleared: 0 } });
+      return;
     }
-    setTagSummary({ flagOutcomes });
 
-    if (!dataService.getSetting("autoPracticeTagging", true)) return;
+    const prefix = dataService.getSetting("practiceTagPrefix", "weak");
+
+    // Build per-note summary: was every answer for this note correct?
+    const perNote = {};
+    results.forEach((r) => {
+      if (!perNote[r.noteId]) perNote[r.noteId] = { allCorrect: true };
+      if (!r.correct) perNote[r.noteId].allCorrect = false;
+    });
 
     (async () => {
+      // Step 1: Decrement any weak category that wasn't touched during the session
+      // but belongs to a note the user answered 100% correctly.
+      // This handles the case where the exercise type doesn't match the tag category
+      // (e.g. user has weak::listening:3 but only practiced word-meaning exercises).
+      for (const [noteId, { allCorrect }] of Object.entries(perNote)) {
+        if (!allCorrect) continue;
+        const tagState = tagStateRef.current[noteId] ?? {};
+        for (const [category, level] of Object.entries(tagState)) {
+          if (level <= 0) continue;
+          const alreadyUpdated = tagChangesRef.current[noteId]?.[category] !== undefined;
+          if (alreadyUpdated) continue;
+          const newLevel = level - 1;
+          const oldTag = `${prefix}::${category}:${level}`;
+          const newTag = newLevel > 0 ? `${prefix}::${category}:${newLevel}` : null;
+          try {
+            await ankiConnect.removeTags([noteId], oldTag);
+            if (newTag) await ankiConnect.addTags([noteId], newTag);
+            const updated = { ...tagStateRef.current[noteId] };
+            if (newLevel === 0) delete updated[category];
+            else updated[category] = newLevel;
+            tagStateRef.current[noteId] = updated;
+            touchedNoteIdsRef.current.add(noteId);
+            if (!tagChangesRef.current[noteId]) tagChangesRef.current[noteId] = {};
+            tagChangesRef.current[noteId][category] = { from: level, to: newLevel };
+          } catch (err) {
+            logger.warn("Cleanup tag decrement failed:", err);
+          }
+        }
+      }
+
+      // Step 2: Update flags based on final tag state, collect summary
+      const flagOutcomes = { red: 0, orange: 0, cleared: 0 };
       for (const noteId of touchedNoteIdsRef.current) {
         const tagState = tagStateRef.current[noteId] ?? {};
         const maxLevel = Object.values(tagState).reduce((m, v) => Math.max(m, v), 0);
+        if (maxLevel >= 3) flagOutcomes.red++;
+        else if (maxLevel >= 1) flagOutcomes.orange++;
+        else flagOutcomes.cleared++;
+
         const flag = maxLevel >= 3 ? 1 : maxLevel >= 1 ? 2 : 0;
         const cardIds = touchedCardsRef.current[noteId] ?? [];
         if (cardIds.length > 0) {
@@ -320,8 +357,9 @@ export const usePracticeSession = () => {
           }
         }
       }
+      setTagSummary({ flagOutcomes });
     })();
-  }, [phase]);
+  }, [phase, results]);
 
   const score = results.filter((r) => r.correct).length;
 

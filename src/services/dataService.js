@@ -50,6 +50,7 @@ const STORAGE_KEY = "anki-games-data";
 export const DEFAULT_APP_DATA = {
   version: "2.0",
   theme: "system",
+  savedWords: [],
   settings: {
     ankiConnectUrl: "http://localhost:8765",
     ankiConnectToken: "",
@@ -371,6 +372,40 @@ class DataService {
 
     this.saveData();
     return true;
+  }
+
+  // ============ Saved Words ============
+
+  getSavedWords() {
+    return this.data.savedWords ?? [];
+  }
+
+  addSavedWord(text) {
+    const entry = {
+      id: crypto.randomUUID(),
+      text,
+      note: "",
+      status: "unknown",
+      addedAt: new Date().toISOString(),
+    };
+    if (!this.data.savedWords) this.data.savedWords = [];
+    this.data.savedWords.unshift(entry);
+    this.saveData();
+    return entry;
+  }
+
+  updateSavedWord(id, updates) {
+    if (!this.data.savedWords) return;
+    const idx = this.data.savedWords.findIndex((w) => w.id === id);
+    if (idx === -1) return;
+    this.data.savedWords[idx] = { ...this.data.savedWords[idx], ...updates };
+    this.saveData();
+  }
+
+  removeSavedWord(id) {
+    if (!this.data.savedWords) return;
+    this.data.savedWords = this.data.savedWords.filter((w) => w.id !== id);
+    this.saveData();
   }
 
   // ============ Utility Methods ============

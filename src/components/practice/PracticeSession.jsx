@@ -6,6 +6,8 @@
 import { useEffect, useCallback, useState, useRef } from "react";
 import { usePracticeSession, TYPES } from "../../hooks/usePracticeSession";
 import useStore from "../../store";
+import { useSavedWords } from "../../hooks/useSavedWords";
+import { toast } from "../../store/toastStore";
 import { adaptiveFont, playAudio, PRACTICE_SIZE_TO_MAX_INDEX } from "./practiceUtils";
 import { SentenceWithHighlight, ClozePrompt } from "./SentenceHighlight";
 import AudioBtn from "./AudioBtn";
@@ -71,7 +73,7 @@ const QuestionPrompt = ({ question, showTranslation, onToggleTranslation, maxInd
       <p className="text-xs text-gray-400 dark:text-gray-500">
         Listen and type what you hear
         <span className="ml-2 opacity-60">({question.word})</span>
-        <span className="ml-3 opacity-40">R to replay</span>
+        <span className="ml-3 opacity-40">R or ` to replay</span>
       </p>
     </div>
   );
@@ -110,7 +112,7 @@ const QuestionPrompt = ({ question, showTranslation, onToggleTranslation, maxInd
   );
 };
 
-const SelfRatePanel = ({ question, revealed, inputText, submittedText, onInput, onSubmit, onSkip, onRate, maxIndex }) => {
+const SelfRatePanel = ({ question, revealed, inputText, submittedText, onInput, onSubmit, onSkip, onRate, onReplayAudio, maxIndex }) => {
   if (!revealed) return (
     <div className="flex flex-col gap-3 w-full">
       <input
@@ -120,6 +122,8 @@ const SelfRatePanel = ({ question, revealed, inputText, submittedText, onInput, 
         onChange={(e) => onInput(e.target.value)}
         onKeyDown={(e) => {
           if (e.code === "Enter") { e.stopPropagation(); onSubmit(); }
+          // F2 replays audio while typing (R is blocked in inputs to avoid IME conflict)
+          if (e.code === "Backquote" && onReplayAudio) { e.preventDefault(); onReplayAudio(); }
         }}
         placeholder="Type your answer…"
         className="w-full px-5 py-4 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-lg outline-none focus:border-purple-400 dark:focus:border-purple-500 transition-colors"
@@ -285,7 +289,17 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
   const [submittedText, setSubmittedText] = useState("");
   const [showTranslation, setShowTranslation] = useState(false);
 
-  const optionRefs = useRef([]);
+  const { addWord } = useSavedWords();
+
+  const saveSelection = useCallback(async () => {
+    const sel = window.getSelection()?.toString().trim();
+    if (!sel) { toast.show("Select text first"); return; }
+    const added = await addWord(sel);
+    toast.show(added ? `"${sel}" saved` : `"${sel}" already saved`);
+  }, [addWord]);
+
+  const optionRefs    = useRef([]);
+  const prevQIndexRef = useRef(-1);
 
   const doStart = useCallback((weakNoteIds = null) => {
     if (!sessionOptions) return;
@@ -323,8 +337,15 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
   // Auto-play audio whenever it becomes relevant
   useEffect(() => {
     if (!q?.audioRaw) return;
+    // Track whether the question itself changed (not just revealed/isAnswered).
+    // SENTENCE_DICTATION should only auto-play when a new question loads, not on
+    // every state transition — otherwise the last question's audio fires again
+    // when the session transitions to the end screen.
+    const qChanged = questionIndex !== prevQIndexRef.current;
+    prevQIndexRef.current = questionIndex;
+
     const shouldPlay =
-      (q.type === TYPES.SENTENCE_DICTATION) ||                       // dictation: play on load
+      (q.type === TYPES.SENTENCE_DICTATION && qChanged) ||           // dictation: only on new question
       (!isSelfRate && isAnswered) ||                                  // MC: play on answer reveal
       (isSelfRate && revealed);                                       // self-rate: play on reveal
     if (shouldPlay) playAudio(q.audioRaw);
@@ -343,6 +364,11 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
       // R — replay audio (blocked when typing in input)
       if ((e.key === "r" || e.key === "R") && !inInput && q?.audioRaw) {
         e.preventDefault(); playAudio(q.audioRaw); return;
+      }
+
+      // S — save selected text to word list
+      if ((e.key === "s" || e.key === "S") && !inInput) {
+        e.preventDefault(); saveSelection(); return;
       }
 
       if (isSelfRate) {
@@ -367,7 +393,7 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [phase, drillPairs, isSelfRate, revealed, isAnswered, selfRate, advance, session, q]);
+  }, [phase, drillPairs, isSelfRate, revealed, isAnswered, selfRate, advance, session, q, saveSelection]);
 
   if (drillPairs) {
     return <PairDrill pairs={drillPairs} onFinish={() => setDrillPairs(null)} onClose={onClose} />;
@@ -401,6 +427,16 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
               </span>
               <span className="text-green-600 dark:text-green-400 font-semibold tabular-nums">✓ {score}</span>
               <span className="text-red-500 dark:text-red-400 font-semibold tabular-nums">✗ {errors}</span>
+              <button
+                onClick={saveSelection}
+                className="text-gray-400 dark:text-gray-500 hover:text-amber-500 dark:hover:text-amber-400 transition-colors p-1"
+                title="Save selected text to word list (S)"
+                aria-label="Save selected text"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                </svg>
+              </button>
             </div>
           </>
         )}
@@ -442,6 +478,7 @@ const PracticeSession = ({ sessionOptions, onClose }) => {
                 }}
                 onSkip={() => { setSubmittedText(""); reveal(); }}
                 onRate={selfRate}
+                onReplayAudio={q?.audioRaw ? () => playAudio(q.audioRaw) : null}
                 maxIndex={maxIndex}
               />
             )}
