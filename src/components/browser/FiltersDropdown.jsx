@@ -153,9 +153,33 @@ const FiltersDropdown = () => {
           {/* Tags — autocomplete multi */}
           <div>
             <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Tags</p>
-            {activeFilters.tags.length > 0 && (
+
+            {/* Quick tag filters */}
+            <div className="flex gap-1.5 mb-2">
+              {[
+                { tag: "marked",  label: "Marked", activeClass: "bg-yellow-50 dark:bg-yellow-900/30 border-yellow-400 dark:border-yellow-600 text-yellow-700 dark:text-yellow-300", idleClass: "hover:border-yellow-300 dark:hover:border-yellow-700 hover:text-yellow-600 dark:hover:text-yellow-400" },
+                { tag: "leech",   label: "Leech",  activeClass: "bg-red-50 dark:bg-red-900/30 border-red-400 dark:border-red-600 text-red-700 dark:text-red-300",            idleClass: "hover:border-red-300 dark:hover:border-red-700 hover:text-red-600 dark:hover:text-red-400" },
+              ].map(({ tag, label, activeClass, idleClass }) => {
+                const active = activeFilters.tags.includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    onClick={() => toggleTagFilter(tag)}
+                    className={`px-2.5 py-1 text-xs rounded-lg border transition-colors ${
+                      active
+                        ? activeClass
+                        : `border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 ${idleClass}`
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {activeFilters.tags.filter((t) => t !== "marked" && t !== "leech").length > 0 && (
               <div className="flex flex-wrap gap-1 mb-1.5">
-                {activeFilters.tags.map((tag) => (
+                {activeFilters.tags.filter((t) => t !== "marked" && t !== "leech").map((tag) => (
                   <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full">
                     {tag}
                     <button onClick={() => toggleTagFilter(tag)} className="hover:text-red-500 transition-colors leading-none">✕</button>

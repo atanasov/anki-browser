@@ -4,7 +4,7 @@
  */
 
 import { useNavigate, useLocation } from "react-router-dom";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import ThemeToggle from "./common/ThemeToggle";
 import Dropdown from "./common/Dropdown";
 import ViewSelector from "./views/ViewSelector";
@@ -38,6 +38,33 @@ const Header = () => {
 
   const activeView = activeViewId ? getView(activeViewId) : null;
   const searchRef = useRef(null);
+
+  const [installPrompt, setInstallPrompt] = useState(() => window.__pwaInstallPrompt ?? null);
+  const [showInstallTip, setShowInstallTip] = useState(false);
+  const installTipRef = useRef(null);
+
+  useEffect(() => {
+    const onReady = () => setInstallPrompt(window.__pwaInstallPrompt);
+    window.addEventListener("pwainstallready", onReady);
+    return () => window.removeEventListener("pwainstallready", onReady);
+  }, []);
+
+  useEffect(() => {
+    if (!showInstallTip) return;
+    const h = (e) => { if (installTipRef.current && !installTipRef.current.contains(e.target)) setShowInstallTip(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [showInstallTip]);
+
+  const handleInstall = async () => {
+    if (installPrompt) {
+      await installPrompt.prompt();
+      setInstallPrompt(null);
+      window.__pwaInstallPrompt = null;
+    } else {
+      setShowInstallTip((v) => !v);
+    }
+  };
 
   return (
     <>
@@ -140,6 +167,22 @@ const Header = () => {
 
             {/* Right: controls */}
             <div className="flex items-center gap-1 shrink-0">
+              <div className="relative" ref={installTipRef}>
+                <button
+                  onClick={handleInstall}
+                  className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                  title="Install as app"
+                >
+                  Install
+                </button>
+                {showInstallTip && (
+                  <div className="absolute right-0 mt-2 w-60 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-3 z-50 text-xs text-gray-600 dark:text-gray-300 space-y-1">
+                    <p className="font-semibold text-gray-800 dark:text-gray-100 mb-1">Install Anki Browser</p>
+                    <p><strong>Chrome / Edge:</strong> click the install icon <span className="font-mono">⊕</span> in the address bar, or open the browser menu → <em>Install Anki Browser</em>.</p>
+                    <p><strong>Safari (iOS):</strong> tap Share → <em>Add to Home Screen</em>.</p>
+                  </div>
+                )}
+              </div>
               <SavedWordsPanel />
               <DisplayControl />
 
