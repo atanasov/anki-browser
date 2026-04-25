@@ -216,9 +216,9 @@ const HelpPage = () => {
             <Screenshot src="/screenshots/help-card-browser.png" alt="Card browser grid" />
             <ul className="list-disc list-inside space-y-1 pl-1">
               <li><strong>Search bar</strong> — quick text filter across visible cards.</li>
-              <li><strong>Filters</strong> — filter by flag colour, card status (new / learning / review), tags, or saved words.</li>
-              <li><strong>Marked / Leech</strong> — quick toggles in the Filters panel to show only marked or leech cards.</li>
-              <li><strong>Weak filter</strong> — appears when cards carry <code>weak::</code> tags; narrows the grid to those cards only.</li>
+              <li><strong>Filters</strong> — the Filters dropdown groups all temporary filters: flag colour, card status (new / learning / review), tags, saved words, and weak cards.</li>
+              <li><strong>Marked / Leech</strong> — quick toggles inside Filters to show only marked or leech cards.</li>
+              <li><strong>Weak cards</strong> — appears inside Filters when cards carry <code>weak::</code> tags (set automatically during practice); narrows the grid to those cards only.</li>
               <li><strong>Card buttons</strong> — hover a card to reveal three round buttons: orange (example sentences), purple (similar words), blue (card info).</li>
             </ul>
             <Screenshot src="/screenshots/help-filters.png" alt="Filters dropdown open" caption="Filters dropdown — flag, status, tags, saved words" />
@@ -230,11 +230,11 @@ const HelpPage = () => {
             <Screenshot src="/screenshots/help-saved-words.png" alt="Saved words panel open" caption="Saved words panel with word list and status dots" />
             <ul className="list-disc list-inside space-y-1 pl-1">
               <li><strong>Add manually</strong> — type a word in the input and press Enter.</li>
-              <li><strong>Save during practice</strong> — select any text on the practice screen and press <kbd>S</kbd>.</li>
+              <li><strong>Save during practice</strong> — select any text shown on a practice card (including words inside example sentences or translations) and press <kbd>S</kbd>. Useful for picking up vocabulary that appears in sentence exercises but isn't the card's main word.</li>
               <li><strong>Personal note</strong> — click a word row to add a short note (saved automatically).</li>
               <li><strong>Search →</strong> — hover a row and click to jump to that word in the card browser.</li>
               <li><strong>Status dots</strong> — green: word found in Anki; red: not found.</li>
-              <li><strong>Filter</strong> — use the Filters dropdown → Saved Words to show only saved-word cards.</li>
+              <li><strong>Filter</strong> — use Filters → Saved Words to narrow the card browser to cards that contain any of your saved words. Combine with the Weak filter to focus on weak cards that match your word list.</li>
             </ul>
           </Section>
 
@@ -268,7 +268,7 @@ const HelpPage = () => {
             <Screenshot src="/screenshots/help-exercise-dictation.png" alt="Dictation — listen and type" caption="Dictation — listen and type what you hear" />
 
             <p className="mt-1">During a session, each wrong answer tags the card in Anki with <code>weak::</code> automatically. Correct streaks clear the tag.</p>
-            <p>Press <kbd>S</kbd> at any time to save the currently selected text to your Saved Words list.</p>
+            <p>Press <kbd>S</kbd> at any time to save the currently selected text to your Saved Words list — handy for words you spot in example sentences or translations that you want to review later.</p>
           </Section>
 
           <Section id="practice-results" title="Practice Results & Weak Words">

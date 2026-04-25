@@ -34,13 +34,16 @@ const FiltersDropdown = () => {
   const [showSuggestions,   setShowSuggestions]   = useState(false);
   const panelRef = useRef(null);
 
-  const activeFilters        = useStore((s) => s.activeFilters);
-  const setFlagFilter        = useStore((s) => s.setFlagFilter);
-  const toggleStatusFilter   = useStore((s) => s.toggleStatusFilter);
-  const toggleTagFilter      = useStore((s) => s.toggleTagFilter);
+  const activeFilters          = useStore((s) => s.activeFilters);
+  const setFlagFilter          = useStore((s) => s.setFlagFilter);
+  const toggleStatusFilter     = useStore((s) => s.toggleStatusFilter);
+  const toggleTagFilter        = useStore((s) => s.toggleTagFilter);
   const toggleSavedWordsFilter = useStore((s) => s.toggleSavedWordsFilter);
-  const clearFilters         = useStore((s) => s.clearFilters);
-  const savedWords           = useStore((s) => s.savedWords ?? []);
+  const clearFilters           = useStore((s) => s.clearFilters);
+  const savedWords             = useStore((s) => s.savedWords ?? []);
+  const weakFilter             = useStore((s) => s.weakFilter);
+  const toggleWeakFilter       = useStore((s) => s.toggleWeakFilter);
+  const weakCount              = useStore((s) => s.weakCount);
 
   // Click-outside
   useEffect(() => {
@@ -74,7 +77,8 @@ const FiltersDropdown = () => {
     (activeFilters.flag !== null ? 1 : 0) +
     activeFilters.statuses.length +
     activeFilters.tags.length +
-    (activeFilters.savedWords ? 1 : 0);
+    (activeFilters.savedWords ? 1 : 0) +
+    (weakFilter ? 1 : 0);
 
   return (
     <div className="relative" ref={panelRef}>
@@ -229,6 +233,27 @@ const FiltersDropdown = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                 </svg>
                 Match saved words ({savedWords.length})
+              </button>
+            </div>
+          )}
+
+          {/* Weak cards */}
+          {weakCount > 0 && (
+            <div>
+              <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Weak Cards</p>
+              <button
+                onClick={toggleWeakFilter}
+                className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+                  weakFilter
+                    ? "bg-red-50 dark:bg-red-900/30 border-red-300 dark:border-red-600 text-red-700 dark:text-red-300"
+                    : "border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-red-300 dark:hover:border-red-700 hover:text-red-600 dark:hover:text-red-400"
+                }`}
+                title={weakFilter ? "Show all cards" : `Filter to ${weakCount} weak card${weakCount !== 1 ? "s" : ""}`}
+              >
+                <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                </svg>
+                Weak cards ({weakCount})
               </button>
             </div>
           )}

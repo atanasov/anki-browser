@@ -32,10 +32,6 @@ const Header = () => {
   const togglePracticeMode = useStore((state) => state.togglePracticeMode);
   const searchQuery = useStore((state) => state.searchQuery);
   const setSearchQuery = useStore((state) => state.setSearchQuery);
-  const weakFilter = useStore((state) => state.weakFilter);
-  const toggleWeakFilter = useStore((state) => state.toggleWeakFilter);
-  const weakCount = useStore((state) => state.weakCount);
-
   const activeView = activeViewId ? getView(activeViewId) : null;
   const searchRef = useRef(null);
 
@@ -124,19 +120,6 @@ const Header = () => {
 
                 {activeView && (
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {weakCount > 0 && (
-                      <button
-                        onClick={toggleWeakFilter}
-                        className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-                          weakFilter
-                            ? "bg-red-50 dark:bg-red-900/30 border-red-300 dark:border-red-600 text-red-700 dark:text-red-300"
-                            : "border-red-200 dark:border-red-800 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                        }`}
-                        title={weakFilter ? "Show all cards" : `Filter to ${weakCount} weak card${weakCount !== 1 ? "s" : ""}`}
-                      >
-                        ⚠ Weak ({weakCount})
-                      </button>
-                    )}
                     <FiltersDropdown />
                     <button
                       onClick={toggleEditMode}
