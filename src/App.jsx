@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { useEffect } from "react";
+import { version } from "../package.json";
 import CardBrowserPage from "./pages/CardBrowserPage";
 import HelpPage from "./pages/HelpPage";
 import Header from "./components/Header";
@@ -40,6 +41,13 @@ function App() {
             </ErrorBoundary>
           </main>
           <Toast />
+          <footer className="text-center py-3 text-xs text-gray-400 dark:text-gray-600">
+            Made by{" "}
+            <a href="https://atanas.me" target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 dark:hover:text-gray-400 transition-colors">
+              Atanas
+            </a>
+            {" · "}v{version}
+          </footer>
         </div>
       </Router>
     </ErrorBoundary>

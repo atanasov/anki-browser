@@ -7,7 +7,11 @@
 
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
+**[Try it live →](https://anki-browser.atanas.me)**
+
 </div>
+
+> This is a personal tool I built for my own language learning. I share it publicly in case it's useful to others, but I develop it on my own schedule for my own needs. Issues and PRs are welcome, but I make no promises about responding quickly or accepting changes that don't fit my use case.
 
 ---
 
